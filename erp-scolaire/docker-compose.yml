@@ -6,6 +6,8 @@ networks:
 
 volumes:
   pg_core_admin:
+  pg_timetable:
+  pg_attendance:
   pg_keycloak:
   redis_data:
   kafka_data:
@@ -162,7 +164,53 @@ services:
     networks: [erp-net]
     depends_on:
       - core-admin-service
+      - timetable-service
+      - attendance-service
       - keycloak
+
+  # ─────────────────────────────────────────
+  # Timetable DB
+  # ─────────────────────────────────────────
+
+  postgres-timetable:
+    image: postgres:16-alpine
+    container_name: erp-pg-timetable
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: timetable
+      POSTGRES_USER: ${TIMETABLE_DB_USER:-erptime}
+      POSTGRES_PASSWORD: ${TIMETABLE_DB_PASSWORD:?required}
+    volumes:
+      - pg_timetable:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-timetable.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMETABLE_DB_USER:-erptime} -d timetable"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Attendance DB
+  # ─────────────────────────────────────────
+
+  postgres-attendance:
+    image: postgres:16-alpine
+    container_name: erp-pg-attendance
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: ${ATTENDANCE_DB_USER:-erpattend}
+      POSTGRES_PASSWORD: ${ATTENDANCE_DB_PASSWORD:?required}
+    volumes:
+      - pg_attendance:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-attendance.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ATTENDANCE_DB_USER:-erpattend} -d attendance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ─────────────────────────────────────────
   # Core Admin Service
@@ -195,6 +243,77 @@ services:
     networks: [erp-net]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Timetable Service
+  # ─────────────────────────────────────────
+
+  timetable-service:
+    build:
+      context: ./services/timetable-service
+      dockerfile: Dockerfile
+    container_name: erp-timetable
+    restart: unless-stopped
+    depends_on:
+      postgres-timetable:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3002
+      DATABASE_URL: postgresql://${TIMETABLE_DB_USER:-erptime}:${TIMETABLE_DB_PASSWORD:?required}@postgres-timetable:5432/timetable
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: erp-scolaire
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3002:3002"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Attendance Service
+  # ─────────────────────────────────────────
+
+  attendance-service:
+    build:
+      context: ./services/attendance-service
+      dockerfile: Dockerfile
+    container_name: erp-attendance
+    restart: unless-stopped
+    depends_on:
+      postgres-attendance:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3003
+      DATABASE_URL: postgresql://${ATTENDANCE_DB_USER:-erpattend}:${ATTENDANCE_DB_PASSWORD:?required}@postgres-attendance:5432/attendance
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: erp-scolaire
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      QR_HMAC_SECRET: ${QR_HMAC_SECRET:?required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3003:3003"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
       interval: 15s
       timeout: 5s
       retries: 5
