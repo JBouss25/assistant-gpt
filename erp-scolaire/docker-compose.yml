@@ -12,6 +12,9 @@ volumes:
   pg_gradebook:
   pg_lms:
   pg_notifications:
+  pg_ai:
+  pg_chatbot:
+  pg_analytics:
   pg_keycloak:
   redis_data:
   kafka_data:
@@ -174,6 +177,9 @@ services:
       - gradebook-service
       - lms-service
       - notification-service
+      - ai-prediction-service
+      - chatbot-service
+      - analytics-service
       - keycloak
 
   # ─────────────────────────────────────────
@@ -566,6 +572,151 @@ services:
     networks: [erp-net]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3007/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Month 4 — AI Ecosystem
+  # ─────────────────────────────────────────
+
+  postgres-ai:
+    image: postgres:16-alpine
+    container_name: erp-pg-ai
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_ai
+      POSTGRES_USER: ${AI_DB_USER:-erpai}
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:?required}
+    volumes:
+      - pg_ai:/var/lib/postgresql/data
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USER:-erpai} -d erp_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-prediction-service:
+    build:
+      context: ./services/ai-prediction-service
+    container_name: erp-ai-prediction
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${AI_DB_USER:-erpai}:${AI_DB_PASSWORD:?required}@postgres-ai:5432/erp_ai
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379/3
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MODEL_PATH: /app/models/dropout_model.joblib
+      RISK_THRESHOLD_HIGH: "0.7"
+      RISK_THRESHOLD_MEDIUM: "0.4"
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3008:3008"
+    networks: [erp-net]
+    depends_on:
+      postgres-ai:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3008/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  postgres-chatbot:
+    image: postgres:16-alpine
+    container_name: erp-pg-chatbot
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_chatbot
+      POSTGRES_USER: ${CHATBOT_DB_USER:-erpchat}
+      POSTGRES_PASSWORD: ${CHATBOT_DB_PASSWORD:?required}
+    volumes:
+      - pg_chatbot:/var/lib/postgresql/data
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHATBOT_DB_USER:-erpchat} -d erp_chatbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chatbot-service:
+    build:
+      context: ./services/chatbot-service
+    container_name: erp-chatbot
+    restart: unless-stopped
+    environment:
+      PORT: 3009
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?required}
+      CHATBOT_DB_HOST: postgres-chatbot
+      CHATBOT_DB_NAME: erp_chatbot
+      CHATBOT_DB_USER: ${CHATBOT_DB_USER:-erpchat}
+      CHATBOT_DB_PASSWORD: ${CHATBOT_DB_PASSWORD:?required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379/4
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3009:3009"
+    networks: [erp-net]
+    depends_on:
+      postgres-chatbot:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3009/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  postgres-analytics:
+    image: postgres:16-alpine
+    container_name: erp-pg-analytics
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_analytics
+      POSTGRES_USER: ${ANALYTICS_DB_USER:-erpanalytics}
+      POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:?required}
+    volumes:
+      - pg_analytics:/var/lib/postgresql/data
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ANALYTICS_DB_USER:-erpanalytics} -d erp_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+    container_name: erp-analytics
+    restart: unless-stopped
+    environment:
+      PORT: 3010
+      ANALYTICS_DB_HOST: postgres-analytics
+      ANALYTICS_DB_NAME: erp_analytics
+      ANALYTICS_DB_USER: ${ANALYTICS_DB_USER:-erpanalytics}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:?required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379/5
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3010:3010"
+    networks: [erp-net]
+    depends_on:
+      postgres-analytics:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3010/health"]
       interval: 15s
       timeout: 5s
       retries: 5

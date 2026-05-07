@@ -207,6 +207,78 @@ services:
           redis_port: 6379
           redis_password: ${REDIS_PASSWORD}
 
+  # ── AI Prediction ─────────────────────────────────────
+  - name: ai-prediction-service
+    url: http://ai-prediction-service:3008
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 10000
+    routes:
+      - name: ai-prediction-route
+        paths: ["/api/v1/predictions"]
+        methods: ["GET", "POST", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 120
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Chatbot ────────────────────────────────────────────
+  - name: chatbot-service
+    url: http://chatbot-service:3009
+    connect_timeout: 5000
+    read_timeout: 120000
+    write_timeout: 30000
+    routes:
+      - name: chatbot-route
+        paths: ["/api/v1/chat"]
+        methods: ["POST", "OPTIONS"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 30
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Analytics ──────────────────────────────────────────
+  - name: analytics-service
+    url: http://analytics-service:3010
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 10000
+    routes:
+      - name: analytics-route
+        paths: ["/api/v1/dashboard"]
+        methods: ["GET", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
   # ── Keycloak (Auth passthrough) ────────────────────────
   - name: auth-service
     url: http://keycloak:8080
