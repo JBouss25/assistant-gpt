@@ -590,6 +590,7 @@ services:
       POSTGRES_PASSWORD: ${AI_DB_PASSWORD:?required}
     volumes:
       - pg_ai:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-ai.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks: [erp-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USER:-erpai} -d erp_ai"]
@@ -638,6 +639,7 @@ services:
       POSTGRES_PASSWORD: ${CHATBOT_DB_PASSWORD:?required}
     volumes:
       - pg_chatbot:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-chatbot.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks: [erp-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${CHATBOT_DB_USER:-erpchat} -d erp_chatbot"]
@@ -685,6 +687,7 @@ services:
       POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:?required}
     volumes:
       - pg_analytics:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-analytics.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks: [erp-net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${ANALYTICS_DB_USER:-erpanalytics} -d erp_analytics"]
@@ -720,3 +723,29 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+
+  # ─────────────────────────────────────────
+  # Month 5 — Frontend
+  # ─────────────────────────────────────────
+
+  frontend:
+    build:
+      context: ./services/frontend
+      target: production
+    container_name: erp-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_KEYCLOAK_URL: http://localhost:8080
+      VITE_KEYCLOAK_REALM: erp-scolaire
+      VITE_KEYCLOAK_CLIENT_ID: erp-frontend
+    ports:
+      - "5173:80"
+    networks: [erp-net]
+    depends_on:
+      - kong
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
