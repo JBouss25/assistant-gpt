@@ -95,6 +95,62 @@ services:
           redis_port: 6379
           redis_password: ${REDIS_PASSWORD}
 
+  # ── Finance ────────────────────────────────────────────
+  - name: finance-service
+    url: http://finance-service:3004
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: finance-route
+        paths: ["/api/v1/finance"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+      - name: finance-webhooks
+        paths: ["/api/v1/finance/payments/webhook"]
+        methods: ["POST"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              anonymous: "anonymous"   # webhooks = non authentifiés
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Gradebook ──────────────────────────────────────────
+  - name: gradebook-service
+    url: http://gradebook-service:3005
+    connect_timeout: 5000
+    read_timeout: 60000
+    write_timeout: 30000
+    routes:
+      - name: gradebook-route
+        paths: ["/api/v1/grades", "/api/v1/bulletins"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 80
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
   # ── Keycloak (Auth passthrough) ────────────────────────
   - name: auth-service
     url: http://keycloak:8080
