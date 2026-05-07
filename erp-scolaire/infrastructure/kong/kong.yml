@@ -1,0 +1,105 @@
+_format_version: "3.0"
+_transform: true
+
+# ─────────────────────────────────────────────────────────
+# Kong Declarative Configuration (DB-less mode)
+# ERP Scolaire 360° — API Gateway
+# ─────────────────────────────────────────────────────────
+
+services:
+  # ── Core Admin ────────────────────────────────────────
+  - name: core-admin-service
+    url: http://core-admin-service:3001
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: core-admin-route
+        paths: ["/api/v1/schools", "/api/v1/students", "/api/v1/teachers",
+                "/api/v1/classes", "/api/v1/enrollments", "/api/v1/subjects"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp, nbf]
+      - name: rate-limiting
+        config:
+          minute: 100
+          hour: 2000
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Service-Name:core-admin"
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+      - name: response-ratelimiting
+        config:
+          limits:
+            sms:
+              minute: 100
+
+  # ── Keycloak (Auth passthrough) ────────────────────────
+  - name: auth-service
+    url: http://keycloak:8080
+    routes:
+      - name: auth-route
+        paths: ["/api/v1/auth", "/realms/erp-scolaire"]
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 30
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+# ─────────────────────────────────────────────────────────
+# Global Plugins
+# ─────────────────────────────────────────────────────────
+
+plugins:
+  - name: prometheus
+    config:
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+
+  - name: cors
+    config:
+      origins: ["http://localhost:3000", "https://*.erp-scolaire.ma"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      headers: ["Authorization", "Content-Type", "X-School-ID", "X-Request-ID"]
+      max_age: 3600
+      credentials: true
+
+  - name: bot-detection
+    config:
+      deny: ["googlebot", "semrushbot", "ahrefsbot"]
+
+  - name: ip-restriction
+    config:
+      allow: []   # Remplir avec les IPs autorisées en production
+      deny: []
+
+# ─────────────────────────────────────────────────────────
+# Consumers (Service Accounts)
+# ─────────────────────────────────────────────────────────
+
+consumers:
+  - username: massar-integration
+    keyauth_credentials:
+      - key: "${MASSAR_API_KEY}"
+  - username: internal-ai-service
+    jwt_secrets:
+      - algorithm: RS256
+        rsa_public_key: "${AI_SERVICE_PUBLIC_KEY}"
