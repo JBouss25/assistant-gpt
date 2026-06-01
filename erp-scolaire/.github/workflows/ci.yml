@@ -1,0 +1,169 @@
+name: CI — ERP Scolaire 360°
+
+on:
+  push:
+    branches: [main, develop, "claude/**"]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ── Node.js services ─────────────────────────────────────────────────────
+  test-node:
+    name: "Tests Node.js — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - core-admin-service
+          - timetable-service
+          - attendance-service
+          - finance-service
+          - gradebook-service
+          - lms-service
+          - notification-service
+          - chatbot-service
+          - analytics-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: erp-scolaire/services/${{ matrix.service }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: erp-scolaire/services/${{ matrix.service }}
+        run: npm ci --ignore-scripts
+
+      - name: Type check
+        working-directory: erp-scolaire/services/${{ matrix.service }}
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        working-directory: erp-scolaire/services/${{ matrix.service }}
+        run: npm test
+
+  # ── Python service ───────────────────────────────────────────────────────
+  test-python:
+    name: "Tests Python — ai-prediction-service"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: erp-scolaire/services/ai-prediction-service/requirements.txt
+
+      - name: Install dependencies
+        working-directory: erp-scolaire/services/ai-prediction-service
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        working-directory: erp-scolaire/services/ai-prediction-service
+        run: python -m pytest tests/ -v --tb=short
+
+  # ── Docker build validation ───────────────────────────────────────────────
+  docker-build:
+    name: "Docker build — ${{ matrix.service }}"
+    runs-on: ubuntu-latest
+    needs: [test-node, test-python]
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - core-admin-service
+          - timetable-service
+          - attendance-service
+          - finance-service
+          - gradebook-service
+          - lms-service
+          - notification-service
+          - ai-prediction-service
+          - chatbot-service
+          - analytics-service
+          - frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: erp-scolaire/services/${{ matrix.service }}
+          push: false
+          tags: erp-scolaire/${{ matrix.service }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Docker Compose integration smoke ─────────────────────────────────────
+  integration-smoke:
+    name: "Integration smoke test"
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env from example
+        working-directory: erp-scolaire
+        run: |
+          cp .env.example .env
+          # Set required secrets with test values
+          sed -i 's/change_me_strong_password/testpassword123/g' .env
+          sed -i 's/change_me_64_char_hex_string_here/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/g' .env
+          echo "ANTHROPIC_API_KEY=sk-ant-test-key" >> .env
+          echo "AI_DB_PASSWORD=testpassword123" >> .env
+          echo "CHATBOT_DB_PASSWORD=testpassword123" >> .env
+          echo "ANALYTICS_DB_PASSWORD=testpassword123" >> .env
+
+      - name: Start infrastructure only
+        working-directory: erp-scolaire
+        run: |
+          docker compose up -d \
+            postgres-core-admin postgres-timetable postgres-attendance \
+            postgres-finance postgres-gradebook postgres-lms \
+            postgres-notifications redis zookeeper kafka
+          docker compose ps
+
+      - name: Wait for Postgres to be healthy
+        run: |
+          timeout 60 bash -c 'until docker inspect --format="{{.State.Health.Status}}" erp-pg-core-admin | grep -q healthy; do sleep 2; done'
+
+      - name: Start application services
+        working-directory: erp-scolaire
+        run: |
+          docker compose up -d \
+            core-admin-service timetable-service attendance-service \
+            finance-service gradebook-service lms-service notification-service
+          sleep 15
+
+      - name: Health check
+        run: |
+          for port in 3001 3002 3003 3004 3005 3006 3007; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$port/health || echo "000")
+            echo "Port $port: $status"
+            [ "$status" = "200" ] || (echo "FAIL: port $port not healthy" && exit 1)
+          done
+
+      - name: Collect logs on failure
+        if: failure()
+        working-directory: erp-scolaire
+        run: docker compose logs --no-color
+
+      - name: Teardown
+        if: always()
+        working-directory: erp-scolaire
+        run: docker compose down -v

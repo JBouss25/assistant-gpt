@@ -1,0 +1,751 @@
+version: "3.9"
+
+networks:
+  erp-net:
+    driver: bridge
+
+volumes:
+  pg_core_admin:
+  pg_timetable:
+  pg_attendance:
+  pg_finance:
+  pg_gradebook:
+  pg_lms:
+  pg_notifications:
+  pg_ai:
+  pg_chatbot:
+  pg_analytics:
+  pg_keycloak:
+  redis_data:
+  kafka_data:
+  zookeeper_data:
+  kong_data:
+
+services:
+  # ─────────────────────────────────────────
+  # Infrastructure
+  # ─────────────────────────────────────────
+
+  postgres-core-admin:
+    image: postgres:16-alpine
+    container_name: erp-pg-core-admin
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: core_admin
+      POSTGRES_USER: ${CORE_ADMIN_DB_USER:-erpadmin}
+      POSTGRES_PASSWORD: ${CORE_ADMIN_DB_PASSWORD:?required}
+    volumes:
+      - pg_core_admin:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-core-admin.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CORE_ADMIN_DB_USER:-erpadmin} -d core_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-keycloak:
+    image: postgres:16-alpine
+    container_name: erp-pg-keycloak
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: ${KC_DB_USER:-kcadmin}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?required}
+    volumes:
+      - pg_keycloak:/var/lib/postgresql/data
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USER:-kcadmin} -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: erp-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?required} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: erp-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper
+    networks: [erp-net]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: erp-kafka
+    restart: unless-stopped
+    depends_on: [zookeeper]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka
+    ports:
+      - "29092:29092"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Auth Service (Keycloak)
+  # ─────────────────────────────────────────
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: erp-keycloak
+    restart: unless-stopped
+    depends_on:
+      postgres-keycloak:
+        condition: service_healthy
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak
+      KC_DB_USERNAME: ${KC_DB_USER:-kcadmin}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?required}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?required}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    volumes:
+      - ./auth-service/config/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "8080:8080"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080; echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3; cat <&3 | grep -q '200'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ─────────────────────────────────────────
+  # API Gateway (Kong)
+  # ─────────────────────────────────────────
+
+  kong:
+    image: kong:3.6-ubuntu
+    container_name: erp-kong
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+    volumes:
+      - ./infrastructure/kong/kong.yml:/kong/kong.yml:ro
+    ports:
+      - "80:8000"
+      - "443:8443"
+      - "8001:8001"
+    networks: [erp-net]
+    depends_on:
+      - core-admin-service
+      - timetable-service
+      - attendance-service
+      - finance-service
+      - gradebook-service
+      - lms-service
+      - notification-service
+      - ai-prediction-service
+      - chatbot-service
+      - analytics-service
+      - keycloak
+
+  # ─────────────────────────────────────────
+  # Timetable DB
+  # ─────────────────────────────────────────
+
+  postgres-timetable:
+    image: postgres:16-alpine
+    container_name: erp-pg-timetable
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: timetable
+      POSTGRES_USER: ${TIMETABLE_DB_USER:-erptime}
+      POSTGRES_PASSWORD: ${TIMETABLE_DB_PASSWORD:?required}
+    volumes:
+      - pg_timetable:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-timetable.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMETABLE_DB_USER:-erptime} -d timetable"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Attendance DB
+  # ─────────────────────────────────────────
+
+  postgres-attendance:
+    image: postgres:16-alpine
+    container_name: erp-pg-attendance
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: ${ATTENDANCE_DB_USER:-erpattend}
+      POSTGRES_PASSWORD: ${ATTENDANCE_DB_PASSWORD:?required}
+    volumes:
+      - pg_attendance:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-attendance.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ATTENDANCE_DB_USER:-erpattend} -d attendance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-finance:
+    image: postgres:16-alpine
+    container_name: erp-pg-finance
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: ${FINANCE_DB_USER:-erpfinance}
+      POSTGRES_PASSWORD: ${FINANCE_DB_PASSWORD:?required}
+    volumes:
+      - pg_finance:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-finance.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FINANCE_DB_USER:-erpfinance} -d finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-gradebook:
+    image: postgres:16-alpine
+    container_name: erp-pg-gradebook
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gradebook
+      POSTGRES_USER: ${GRADEBOOK_DB_USER:-erpgrades}
+      POSTGRES_PASSWORD: ${GRADEBOOK_DB_PASSWORD:?required}
+    volumes:
+      - pg_gradebook:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-gradebook.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GRADEBOOK_DB_USER:-erpgrades} -d gradebook"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Core Admin Service
+  # ─────────────────────────────────────────
+
+  core-admin-service:
+    build:
+      context: ./services/core-admin-service
+      dockerfile: Dockerfile
+    container_name: erp-core-admin
+    restart: unless-stopped
+    depends_on:
+      postgres-core-admin:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3001
+      DATABASE_URL: postgresql://${CORE_ADMIN_DB_USER:-erpadmin}:${CORE_ADMIN_DB_PASSWORD:?required}@postgres-core-admin:5432/core_admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: erp-scolaire
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3001:3001"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Timetable Service
+  # ─────────────────────────────────────────
+
+  timetable-service:
+    build:
+      context: ./services/timetable-service
+      dockerfile: Dockerfile
+    container_name: erp-timetable
+    restart: unless-stopped
+    depends_on:
+      postgres-timetable:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3002
+      DATABASE_URL: postgresql://${TIMETABLE_DB_USER:-erptime}:${TIMETABLE_DB_PASSWORD:?required}@postgres-timetable:5432/timetable
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: erp-scolaire
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3002:3002"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Attendance Service
+  # ─────────────────────────────────────────
+
+  attendance-service:
+    build:
+      context: ./services/attendance-service
+      dockerfile: Dockerfile
+    container_name: erp-attendance
+    restart: unless-stopped
+    depends_on:
+      postgres-attendance:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3003
+      DATABASE_URL: postgresql://${ATTENDANCE_DB_USER:-erpattend}:${ATTENDANCE_DB_PASSWORD:?required}@postgres-attendance:5432/attendance
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: erp-scolaire
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      QR_HMAC_SECRET: ${QR_HMAC_SECRET:?required}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3003:3003"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  finance-service:
+    build:
+      context: ./services/finance-service
+      dockerfile: Dockerfile
+    container_name: erp-finance
+    restart: unless-stopped
+    depends_on:
+      postgres-finance:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3004
+      DATABASE_URL: postgresql://${FINANCE_DB_USER:-erpfinance}:${FINANCE_DB_PASSWORD:?required}@postgres-finance:5432/finance
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      APP_BASE_URL: ${APP_BASE_URL:-https://erp.ma}
+      CMI_CLIENT_ID: ${CMI_CLIENT_ID}
+      CMI_STORE_KEY: ${CMI_STORE_KEY}
+      CMI_BASE_URL: ${CMI_BASE_URL:-https://testpayment.cmi.co.ma/fim/est3Dgate}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3004:3004"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  gradebook-service:
+    build:
+      context: ./services/gradebook-service
+      dockerfile: Dockerfile
+    container_name: erp-gradebook
+    restart: unless-stopped
+    depends_on:
+      postgres-gradebook:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3005
+      DATABASE_URL: postgresql://${GRADEBOOK_DB_USER:-erpgrades}:${GRADEBOOK_DB_PASSWORD:?required}@postgres-gradebook:5432/gradebook
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379
+      KAFKA_BROKERS: kafka:9092
+      JWT_PUBLIC_KEY_URL: http://keycloak:8080/realms/erp-scolaire/protocol/openid-connect/certs
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?required}
+      S3_BUCKET_BULLETINS: ${S3_BUCKET_BULLETINS:-erp-bulletins}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3005:3005"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # LMS DB
+  # ─────────────────────────────────────────
+
+  postgres-lms:
+    image: postgres:16-alpine
+    container_name: erp-pg-lms
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_lms
+      POSTGRES_USER: ${LMS_DB_USER:-erplms}
+      POSTGRES_PASSWORD: ${LMS_DB_PASSWORD:?required}
+    volumes:
+      - pg_lms:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-lms.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LMS_DB_USER:-erplms} -d erp_lms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Notifications DB
+  # ─────────────────────────────────────────
+
+  postgres-notifications:
+    image: postgres:16-alpine
+    container_name: erp-pg-notifications
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_notifications
+      POSTGRES_USER: ${NOTIF_DB_USER:-erpnotif}
+      POSTGRES_PASSWORD: ${NOTIF_DB_PASSWORD:?required}
+    volumes:
+      - pg_notifications:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-notifications.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIF_DB_USER:-erpnotif} -d erp_notifications"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # LMS Service
+  # ─────────────────────────────────────────
+
+  lms-service:
+    build:
+      context: ./services/lms-service
+      dockerfile: Dockerfile
+    container_name: erp-lms
+    restart: unless-stopped
+    depends_on:
+      postgres-lms:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3006
+      LMS_DB_HOST: postgres-lms
+      LMS_DB_NAME: erp_lms
+      LMS_DB_USER: ${LMS_DB_USER:-erplms}
+      LMS_DB_PASSWORD: ${LMS_DB_PASSWORD:?required}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      KAFKA_BROKERS: kafka:9092
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      S3_REGION: ${S3_REGION:-eu-west-3}
+      S3_BUCKET: ${S3_BUCKET:-erp-scolaire-lms}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3006:3006"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3006/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Notification Service
+  # ─────────────────────────────────────────
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: erp-notification
+    restart: unless-stopped
+    depends_on:
+      postgres-notifications:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3007
+      NOTIF_DB_HOST: postgres-notifications
+      NOTIF_DB_NAME: erp_notifications
+      NOTIF_DB_USER: ${NOTIF_DB_USER:-erpnotif}
+      NOTIF_DB_PASSWORD: ${NOTIF_DB_PASSWORD:?required}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      KAFKA_BROKERS: kafka:9092
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      WHATSAPP_PHONE_ID: ${WHATSAPP_PHONE_ID}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@erp-scolaire.ma}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM: ${TWILIO_FROM}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3007:3007"
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3007/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Month 4 — AI Ecosystem
+  # ─────────────────────────────────────────
+
+  postgres-ai:
+    image: postgres:16-alpine
+    container_name: erp-pg-ai
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_ai
+      POSTGRES_USER: ${AI_DB_USER:-erpai}
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:?required}
+    volumes:
+      - pg_ai:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-ai.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USER:-erpai} -d erp_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-prediction-service:
+    build:
+      context: ./services/ai-prediction-service
+    container_name: erp-ai-prediction
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${AI_DB_USER:-erpai}:${AI_DB_PASSWORD:?required}@postgres-ai:5432/erp_ai
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379/3
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MODEL_PATH: /app/models/dropout_model.joblib
+      RISK_THRESHOLD_HIGH: "0.7"
+      RISK_THRESHOLD_MEDIUM: "0.4"
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3008:3008"
+    networks: [erp-net]
+    depends_on:
+      postgres-ai:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3008/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  postgres-chatbot:
+    image: postgres:16-alpine
+    container_name: erp-pg-chatbot
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_chatbot
+      POSTGRES_USER: ${CHATBOT_DB_USER:-erpchat}
+      POSTGRES_PASSWORD: ${CHATBOT_DB_PASSWORD:?required}
+    volumes:
+      - pg_chatbot:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-chatbot.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHATBOT_DB_USER:-erpchat} -d erp_chatbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chatbot-service:
+    build:
+      context: ./services/chatbot-service
+    container_name: erp-chatbot
+    restart: unless-stopped
+    environment:
+      PORT: 3009
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?required}
+      CHATBOT_DB_HOST: postgres-chatbot
+      CHATBOT_DB_NAME: erp_chatbot
+      CHATBOT_DB_USER: ${CHATBOT_DB_USER:-erpchat}
+      CHATBOT_DB_PASSWORD: ${CHATBOT_DB_PASSWORD:?required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379/4
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3009:3009"
+    networks: [erp-net]
+    depends_on:
+      postgres-chatbot:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3009/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  postgres-analytics:
+    image: postgres:16-alpine
+    container_name: erp-pg-analytics
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_analytics
+      POSTGRES_USER: ${ANALYTICS_DB_USER:-erpanalytics}
+      POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:?required}
+    volumes:
+      - pg_analytics:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-analytics.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [erp-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ANALYTICS_DB_USER:-erpanalytics} -d erp_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+    container_name: erp-analytics
+    restart: unless-stopped
+    environment:
+      PORT: 3010
+      ANALYTICS_DB_HOST: postgres-analytics
+      ANALYTICS_DB_NAME: erp_analytics
+      ANALYTICS_DB_USER: ${ANALYTICS_DB_USER:-erpanalytics}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:?required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?required}@redis:6379/5
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3010:3010"
+    networks: [erp-net]
+    depends_on:
+      postgres-analytics:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3010/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Month 5 — Frontend
+  # ─────────────────────────────────────────
+
+  frontend:
+    build:
+      context: ./services/frontend
+      target: production
+    container_name: erp-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_KEYCLOAK_URL: http://localhost:8080
+      VITE_KEYCLOAK_REALM: erp-scolaire
+      VITE_KEYCLOAK_CLIENT_ID: erp-frontend
+    ports:
+      - "5173:80"
+    networks: [erp-net]
+    depends_on:
+      - kong
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

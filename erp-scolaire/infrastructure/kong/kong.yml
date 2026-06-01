@@ -1,0 +1,337 @@
+_format_version: "3.0"
+_transform: true
+
+# ─────────────────────────────────────────────────────────
+# Kong Declarative Configuration (DB-less mode)
+# ERP Scolaire 360° — API Gateway
+# ─────────────────────────────────────────────────────────
+
+services:
+  # ── Core Admin ────────────────────────────────────────
+  - name: core-admin-service
+    url: http://core-admin-service:3001
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: core-admin-route
+        paths: ["/api/v1/schools", "/api/v1/students", "/api/v1/teachers",
+                "/api/v1/classes", "/api/v1/enrollments", "/api/v1/subjects"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp, nbf]
+      - name: rate-limiting
+        config:
+          minute: 100
+          hour: 2000
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "X-Service-Name:core-admin"
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid#counter
+      - name: response-ratelimiting
+        config:
+          limits:
+            sms:
+              minute: 100
+
+  # ── Timetable ─────────────────────────────────────────
+  - name: timetable-service
+    url: http://timetable-service:3002
+    connect_timeout: 5000
+    read_timeout: 60000
+    write_timeout: 30000
+    routes:
+      - name: timetable-route
+        paths: ["/api/v1/schools", "/api/v1/timetable"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Attendance ─────────────────────────────────────────
+  - name: attendance-service
+    url: http://attendance-service:3003
+    connect_timeout: 5000
+    read_timeout: 15000
+    write_timeout: 10000
+    routes:
+      - name: attendance-route
+        paths: ["/api/v1/attendance", "/api/v1/qrcode"]
+        methods: ["GET", "POST", "PATCH"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Finance ────────────────────────────────────────────
+  - name: finance-service
+    url: http://finance-service:3004
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: finance-route
+        paths: ["/api/v1/finance"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+      - name: finance-webhooks
+        paths: ["/api/v1/finance/payments/webhook"]
+        methods: ["POST"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              anonymous: "anonymous"   # webhooks = non authentifiés
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Gradebook ──────────────────────────────────────────
+  - name: gradebook-service
+    url: http://gradebook-service:3005
+    connect_timeout: 5000
+    read_timeout: 60000
+    write_timeout: 30000
+    routes:
+      - name: gradebook-route
+        paths: ["/api/v1/grades", "/api/v1/bulletins"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 80
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── LMS ───────────────────────────────────────────────
+  - name: lms-service
+    url: http://lms-service:3006
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 30000
+    routes:
+      - name: lms-route
+        paths: ["/api/v1/cours", "/api/v1/devoirs"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Notifications ──────────────────────────────────────
+  - name: notification-service
+    url: http://notification-service:3007
+    connect_timeout: 5000
+    read_timeout: 15000
+    write_timeout: 15000
+    routes:
+      - name: notifications-route
+        paths: ["/api/v1/notifications"]
+        methods: ["GET", "POST", "PATCH"]
+        strip_path: false
+      - name: notif-webhooks
+        paths: ["/api/v1/webhooks/whatsapp"]
+        methods: ["GET", "POST"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              anonymous: "anonymous"  # webhooks Meta = non authentifiés
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── AI Prediction ─────────────────────────────────────
+  - name: ai-prediction-service
+    url: http://ai-prediction-service:3008
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 10000
+    routes:
+      - name: ai-prediction-route
+        paths: ["/api/v1/predictions"]
+        methods: ["GET", "POST", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 120
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Chatbot ────────────────────────────────────────────
+  - name: chatbot-service
+    url: http://chatbot-service:3009
+    connect_timeout: 5000
+    read_timeout: 120000
+    write_timeout: 30000
+    routes:
+      - name: chatbot-route
+        paths: ["/api/v1/chat"]
+        methods: ["POST", "OPTIONS"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 30
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Analytics ──────────────────────────────────────────
+  - name: analytics-service
+    url: http://analytics-service:3010
+    connect_timeout: 5000
+    read_timeout: 30000
+    write_timeout: 10000
+    routes:
+      - name: analytics-route
+        paths: ["/api/v1/dashboard"]
+        methods: ["GET", "DELETE"]
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          key_claim_name: kid
+          claims_to_verify: [exp]
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+  # ── Keycloak (Auth passthrough) ────────────────────────
+  - name: auth-service
+    url: http://keycloak:8080
+    routes:
+      - name: auth-route
+        paths: ["/api/v1/auth", "/realms/erp-scolaire"]
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 30
+          policy: redis
+          redis_host: redis
+          redis_port: 6379
+          redis_password: ${REDIS_PASSWORD}
+
+# ─────────────────────────────────────────────────────────
+# Global Plugins
+# ─────────────────────────────────────────────────────────
+
+plugins:
+  - name: prometheus
+    config:
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true
+
+  - name: cors
+    config:
+      origins: ["http://localhost:3000", "https://*.erp-scolaire.ma"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      headers: ["Authorization", "Content-Type", "X-School-ID", "X-Request-ID"]
+      max_age: 3600
+      credentials: true
+
+  - name: bot-detection
+    config:
+      deny: ["googlebot", "semrushbot", "ahrefsbot"]
+
+  - name: ip-restriction
+    config:
+      allow: []   # Remplir avec les IPs autorisées en production
+      deny: []
+
+# ─────────────────────────────────────────────────────────
+# Consumers (Service Accounts)
+# ─────────────────────────────────────────────────────────
+
+consumers:
+  - username: massar-integration
+    keyauth_credentials:
+      - key: "${MASSAR_API_KEY}"
+  - username: internal-ai-service
+    jwt_secrets:
+      - algorithm: RS256
+        rsa_public_key: "${AI_SERVICE_PUBLIC_KEY}"
