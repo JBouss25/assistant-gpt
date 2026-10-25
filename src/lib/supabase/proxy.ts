@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured, SUPABASE_KEY, SUPABASE_URL } from "./env";
 
-const PROTECTED = ["/tableau-de-bord", "/onboarding", "/profil"];
+const PROTECTED = ["/tableau-de-bord", "/onboarding", "/profil", "/messages", "/calendrier"];
 const AUTH_PAGES = ["/connexion", "/inscription"];
 
 /** Rafraîchit la session Supabase et applique les redirections optimistes. */

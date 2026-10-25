@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { LayoutDashboard, LogOut, Search } from "lucide-react";
+import { CalendarDays, LayoutDashboard, LogOut, MessagesSquare, Search } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { getViewer } from "@/lib/data";
 import { Avatar } from "./ui/misc";
@@ -59,10 +59,18 @@ async function UserArea() {
     );
   }
   return (
-    <div className="flex items-center gap-2">
-      <ButtonLink href="/tableau-de-bord" variant="ghost" size="sm" className="hidden sm:inline-flex">
+    <div className="flex items-center gap-1">
+      <ButtonLink href="/tableau-de-bord" variant="ghost" size="sm" className="px-2 lg:px-3" aria-label="Tableau de bord">
         <LayoutDashboard className="size-4" />
-        Tableau de bord
+        <span className="hidden lg:inline">Tableau de bord</span>
+      </ButtonLink>
+      <ButtonLink href="/messages" variant="ghost" size="sm" className="px-2 lg:px-3" aria-label="Messages">
+        <MessagesSquare className="size-4" />
+        <span className="hidden lg:inline">Messages</span>
+      </ButtonLink>
+      <ButtonLink href="/calendrier" variant="ghost" size="sm" className="px-2 lg:px-3" aria-label="Calendrier">
+        <CalendarDays className="size-4" />
+        <span className="hidden lg:inline">Calendrier</span>
       </ButtonLink>
       <Link href="/profil" aria-label="Mon profil" className="rounded-full focus-visible:outline-2 focus-visible:outline-brand">
         <Avatar name={viewer.profile.full_name || viewer.email} size={34} />

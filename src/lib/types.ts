@@ -63,3 +63,27 @@ export type Review = {
   comment: string;
   created_at: string;
 };
+
+export type Message = {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+};
+
+export type LessonStatus = "proposed" | "confirmed" | "cancelled";
+
+export type Lesson = {
+  id: string;
+  request_id: string;
+  teacher_id: string;
+  student_id: string;
+  subject: string;
+  starts_at: string;
+  ends_at: string;
+  duration_minutes: number;
+  note: string;
+  status: LessonStatus;
+  proposed_by: string;
+};

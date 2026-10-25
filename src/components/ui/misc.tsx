@@ -42,11 +42,11 @@ export function Badge({
 }
 
 const avatarColors = [
-  "from-indigo-500 to-violet-500",
-  "from-sky-500 to-cyan-400",
-  "from-emerald-500 to-teal-400",
-  "from-rose-500 to-orange-400",
-  "from-fuchsia-500 to-pink-400",
+  "from-lime-800 to-lime-600",
+  "from-amber-900 to-amber-700",
+  "from-stone-600 to-stone-400",
+  "from-yellow-800 to-orange-800",
+  "from-emerald-900 to-lime-700",
 ];
 
 export function Avatar({ name, size = 48, className }: { name: string; size?: number; className?: string }) {
@@ -81,7 +81,7 @@ export function Rating({ value, count }: { value: number; count: number }) {
 export function ScoreRing({ score, size = 56 }: { score: number; size?: number }) {
   const r = 22;
   const c = 2 * Math.PI * r;
-  const tone = score >= 80 ? "text-success" : score >= 60 ? "text-brand" : "text-warning";
+  const tone = score >= 80 ? "text-success" : score >= 60 ? "text-accent" : "text-warning";
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }} title={`Compatibilité ${score} %`}>
       <svg viewBox="0 0 50 50" className="size-full -rotate-90">

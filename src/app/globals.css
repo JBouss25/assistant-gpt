@@ -1,32 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --background: oklch(0.99 0.003 270);
-  --foreground: oklch(0.21 0.02 270);
+  /* Charte Mentora : vert olive (principal) et marron (secondaire), fond crème. */
+  --background: oklch(0.985 0.007 95);
+  --foreground: oklch(0.26 0.025 65);
   --surface: oklch(1 0 0);
-  --surface-muted: oklch(0.97 0.006 270);
-  --border: oklch(0.92 0.008 270);
-  --muted: oklch(0.52 0.02 270);
-  --brand: oklch(0.55 0.22 275);
-  --brand-strong: oklch(0.47 0.22 275);
-  --brand-soft: oklch(0.95 0.035 275);
-  --accent: oklch(0.78 0.15 175);
-  --success: oklch(0.6 0.15 155);
-  --warning: oklch(0.75 0.15 75);
-  --danger: oklch(0.6 0.2 25);
+  --surface-muted: oklch(0.965 0.01 90);
+  --border: oklch(0.91 0.014 88);
+  --muted: oklch(0.52 0.025 75);
+  --brand: oklch(0.53 0.1 122); /* olive #67783a */
+  --brand-strong: oklch(0.45 0.09 122);
+  --brand-soft: oklch(0.95 0.035 118);
+  --accent: oklch(0.48 0.075 55); /* marron #7a5638 */
+  --accent-soft: oklch(0.94 0.025 65);
+  --band-accent: oklch(0.83 0.1 115);
+  --success: oklch(0.58 0.13 150);
+  --warning: oklch(0.72 0.14 70);
+  --danger: oklch(0.56 0.17 30);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.16 0.015 270);
-    --foreground: oklch(0.95 0.005 270);
-    --surface: oklch(0.2 0.018 270);
-    --surface-muted: oklch(0.24 0.02 270);
-    --border: oklch(0.3 0.02 270);
-    --muted: oklch(0.7 0.02 270);
-    --brand: oklch(0.68 0.18 275);
-    --brand-strong: oklch(0.74 0.16 275);
-    --brand-soft: oklch(0.3 0.08 275);
+    --background: oklch(0.18 0.012 80);
+    --foreground: oklch(0.95 0.01 90);
+    --surface: oklch(0.22 0.014 80);
+    --surface-muted: oklch(0.26 0.016 80);
+    --border: oklch(0.32 0.018 80);
+    --muted: oklch(0.72 0.02 85);
+    --brand: oklch(0.7 0.11 120);
+    --brand-strong: oklch(0.78 0.1 118);
+    --brand-soft: oklch(0.32 0.05 120);
+    --accent: oklch(0.7 0.07 60);
+    --accent-soft: oklch(0.31 0.035 60);
+    --band-accent: oklch(0.48 0.1 122);
   }
 }
 
@@ -41,6 +47,8 @@
   --color-brand-strong: var(--brand-strong);
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-band-accent: var(--band-accent);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);

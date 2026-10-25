@@ -22,8 +22,8 @@ const steps = [
   },
   {
     icon: MessageCircle,
-    title: "Lancez-vous",
-    text: "Envoyez une demande, l'enseignant accepte, et vous démarrez vos cours.",
+    title: "Échangez et réservez",
+    text: "Une fois la demande acceptée, discutez par messagerie et réservez des cours de 1 h 30 à 2 h dans le calendrier.",
   },
 ];
 
@@ -133,7 +133,7 @@ export default function Home() {
           <div className="grid gap-6 sm:grid-cols-3 lg:grid-cols-1">
             {features.map((f) => (
               <div key={f.title} className="flex gap-4">
-                <f.icon className="mt-0.5 size-5 shrink-0 text-accent" />
+                <f.icon className="mt-0.5 size-5 shrink-0 text-band-accent" />
                 <div>
                   <h3 className="font-medium">{f.title}</h3>
                   <p className="mt-1 text-sm opacity-70">{f.text}</p>

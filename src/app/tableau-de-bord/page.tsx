@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { Check, Inbox, Search, Sparkles, Star, Users, X } from "lucide-react";
+import { CalendarDays, Check, Inbox, MessagesSquare, Search, Sparkles, Star, Users, X } from "lucide-react";
 import { updateRequestStatus } from "@/app/actions/requests";
 import { TeacherCard } from "@/components/teacher-card";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -221,6 +221,16 @@ function RequestList({
                 <p className="mt-2 rounded-xl bg-surface-muted px-3 py-2 text-xs text-muted">Objectifs : {sp.goals}</p>
               )}
             </div>
+            {r.status === "accepted" && (
+              <div className="flex shrink-0 gap-2">
+                <ButtonLink href="/calendrier" variant="secondary" size="sm">
+                  <CalendarDays className="size-4" /> Planifier
+                </ButtonLink>
+                <ButtonLink href={`/messages/${r.id}`} size="sm">
+                  <MessagesSquare className="size-4" /> Écrire
+                </ButtonLink>
+              </div>
+            )}
             {r.status === "pending" && (
               <div className="flex shrink-0 gap-2">
                 {role === "teacher" ? (
