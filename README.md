@@ -43,6 +43,19 @@ Toutes les règles d'accès sont dans la base (`supabase/migrations`), pas seule
 
 ## Démarrage local
 
+👉 Guide pas à pas avec un scénario de test complet : [`docs/tester-en-local.md`](docs/tester-en-local.md).
+
+En résumé (Docker requis) :
+
+```bash
+npm install
+npm run db:start && npm run env:local
+npm run dev            # http://localhost:3000
+npm run test:e2e       # parcours complet automatisé
+```
+
+### Sans Docker
+
 ```bash
 npm install
 cp .env.example .env.local   # puis renseigner les clés Supabase
@@ -84,6 +97,9 @@ Dans *Authentication → URL Configuration*, ajoutez `https://<votre-domaine>/au
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Vérification TypeScript |
 | `npm test` | Tests unitaires du matching et des dates (Vitest) |
+| `npm run test:e2e` | Parcours complet dans un navigateur (Playwright) |
+| `npm run db:start` / `db:stop` / `db:reset` | Supabase local (Docker) |
+| `npm run env:local` | Génère `.env.local` pour la base locale |
 
 ## Structure
 
