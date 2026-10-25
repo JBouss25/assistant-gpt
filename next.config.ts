@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Pas de pastille de développement (captures d'écran des stores).
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

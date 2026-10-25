@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { CalendarDays, LayoutDashboard, LogOut, MessagesSquare, Search } from "lucide-react";
-import { signOut } from "@/app/actions/auth";
+import { CalendarDays, LayoutDashboard, MessagesSquare, Search } from "lucide-react";
 import { getViewer } from "@/lib/data";
 import { Avatar } from "./ui/misc";
 import { ButtonLink, buttonClass } from "./ui/button";
 import { Logo } from "./logo";
+import { NativeBridge } from "./native-bridge";
+import { SignOutButton } from "./sign-out-button";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <div className="flex items-center gap-8">
           <Link href="/" aria-label="Accueil Mentora">
@@ -49,6 +50,7 @@ async function UserArea() {
   if (!viewer) {
     return (
       <div className="flex items-center gap-2">
+        <NativeBridge signedIn={false} />
         <ButtonLink href="/connexion" variant="ghost" size="sm">
           Connexion
         </ButtonLink>
@@ -60,6 +62,7 @@ async function UserArea() {
   }
   return (
     <div className="flex items-center gap-1">
+      <NativeBridge signedIn />
       <ButtonLink href="/tableau-de-bord" variant="ghost" size="sm" className="px-2 lg:px-3" aria-label="Tableau de bord">
         <LayoutDashboard className="size-4" />
         <span className="hidden lg:inline">Tableau de bord</span>
@@ -75,11 +78,7 @@ async function UserArea() {
       <Link href="/profil" aria-label="Mon profil" className="rounded-full focus-visible:outline-2 focus-visible:outline-brand">
         <Avatar name={viewer.profile.full_name || viewer.email} size={34} />
       </Link>
-      <form action={signOut}>
-        <button type="submit" aria-label="Se déconnecter" title="Se déconnecter" className={buttonClass("ghost", "sm", "px-2")}>
-          <LogOut className="size-4" />
-        </button>
-      </form>
+      <SignOutButton />
     </div>
   );
 }

@@ -50,11 +50,13 @@ function Greeting({ viewer, subtitle }: { viewer: Viewer; subtitle: string }) {
 
 function Stat({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
   return (
-    <Card className="flex items-center gap-4 p-5">
-      <div className="flex size-11 items-center justify-center rounded-2xl bg-brand-soft text-brand">{icon}</div>
+    <Card className="flex flex-col items-start gap-2 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
+      <div className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand sm:size-11 sm:rounded-2xl">
+        {icon}
+      </div>
       <div>
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p className="text-sm text-muted">{label}</p>
+        <p className="text-xl font-semibold tabular-nums sm:text-2xl">{value}</p>
+        <p className="text-xs leading-snug text-muted sm:text-sm">{label}</p>
       </div>
     </Card>
   );
@@ -84,7 +86,7 @@ async function StudentDashboard({ viewer }: { viewer: Viewer }) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="Enseignants compatibles" value={matches.length} icon={<Sparkles className="size-5" />} />
         <Stat label="Demandes en attente" value={pending} icon={<Inbox className="size-5" />} />
         <Stat label="Enseignants acceptés" value={accepted} icon={<Users className="size-5" />} />
@@ -137,7 +139,7 @@ async function TeacherDashboard({ viewer }: { viewer: Viewer }) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="Nouvelles demandes" value={pending.length} icon={<Inbox className="size-5" />} />
         <Stat label="Élèves suivis" value={students} icon={<Users className="size-5" />} />
         <Stat
@@ -283,7 +285,7 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-8">
       <Skeleton className="h-16 w-72" />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Skeleton className="h-24" />
         <Skeleton className="h-24" />
         <Skeleton className="h-24" />

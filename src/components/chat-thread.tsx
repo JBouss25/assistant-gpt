@@ -19,11 +19,14 @@ export function ChatThread({
   viewerId,
   otherName,
   initialMessages,
+  closedReason,
 }: {
   requestId: string;
   viewerId: string;
   otherName: string;
   initialMessages: Message[];
+  /** Conversation fermée (blocage) : on affiche l'historique sans zone de saisie. */
+  closedReason?: string;
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
@@ -103,10 +106,16 @@ export function ChatThread({
         {messages.map((m, i) => {
           const mine = m.sender_id === viewerId;
           const prev = messages[i - 1];
-          const grouped = prev && prev.sender_id === m.sender_id && Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60000;
+          const grouped =
+            prev &&
+            prev.sender_id === m.sender_id &&
+            Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60000;
           const sameDay = parisParts(new Date(m.created_at)).date === today;
           return (
-            <div key={m.id} className={cn("flex flex-col", mine ? "items-end" : "items-start", !grouped && i > 0 && "pt-3")}>
+            <div
+              key={m.id}
+              className={cn("flex flex-col", mine ? "items-end" : "items-start", !grouped && i > 0 && "pt-3")}
+            >
               <p
                 className={cn(
                   "max-w-[85%] rounded-3xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words sm:max-w-[70%]",
@@ -126,40 +135,44 @@ export function ChatThread({
         <div ref={bottom} />
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-        className="border-t border-border p-3"
-      >
-        {error && <p className="px-2 pb-2 text-xs text-danger">{error}</p>}
-        <div className="flex items-end gap-2">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            rows={1}
-            maxLength={4000}
-            placeholder={`Écrire à ${otherName}…`}
-            aria-label="Votre message"
-            className="max-h-40 min-h-11 flex-1 resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm focus:border-brand focus:ring-4 focus:ring-brand/15 focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={pending || !draft.trim()}
-            aria-label="Envoyer"
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand-strong disabled:opacity-40"
-          >
-            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
-          </button>
-        </div>
-      </form>
+      {closedReason ? (
+        <p className="border-t border-border p-4 text-center text-sm text-muted">{closedReason}</p>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          className="border-t border-border p-3"
+        >
+          {error && <p className="px-2 pb-2 text-xs text-danger">{error}</p>}
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              rows={1}
+              maxLength={4000}
+              placeholder={`Écrire à ${otherName}…`}
+              aria-label="Votre message"
+              className="max-h-40 min-h-11 flex-1 resize-none rounded-2xl border border-border bg-background px-4 py-2.5 text-sm focus:border-brand focus:ring-4 focus:ring-brand/15 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={pending || !draft.trim()}
+              aria-label="Envoyer"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand-strong disabled:opacity-40"
+            >
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

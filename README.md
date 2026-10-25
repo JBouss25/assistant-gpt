@@ -27,6 +27,9 @@ Plateforme qui met en relation des **élèves** (collège, lycée, CPGE, univers
 - **Calendrier de réservation** : vue semaine (liste sur mobile), cours de **1 h 30, 1 h 45 ou 2 h**, proposés par l'un et confirmés par l'autre. Les chevauchements sont refusés, pour l'enseignant comme pour l'élève. Les horaires sont affichés à l'heure de Paris.
 - Tableaux de bord élève et enseignant.
 
+- **Applis Android et iOS** (Capacitor) : notifications push, écran de démarrage, mode hors-ligne. Voir [`docs/publier-sur-les-stores.md`](docs/publier-sur-les-stores.md).
+- **Conformité stores** : suppression de compte, signalement et blocage d'un utilisateur, pages Confidentialité, Conditions et Aide.
+
 **Charte graphique :** vert olive (couleur principale), marron (secondaire), fond crème. Le mode sombre est automatique. Les couleurs sont définies dans `src/app/globals.css`.
 
 ## Sécurité
@@ -100,6 +103,9 @@ Dans *Authentication → URL Configuration*, ajoutez `https://<votre-domaine>/au
 | `npm run test:e2e` | Parcours complet dans un navigateur (Playwright) |
 | `npm run db:start` / `db:stop` / `db:reset` | Supabase local (Docker) |
 | `npm run env:local` | Génère `.env.local` pour la base locale |
+| `npm run mobile:sync` | Met à jour les projets Android / iOS (`MOBILE_APP_URL` pour changer d'URL) |
+| `npm run mobile:android` / `mobile:ios` | Ouvre le projet dans Android Studio / Xcode |
+| `npm run store:screenshots` | Génère les captures d'écran des stores |
 
 ## Structure
 
@@ -116,6 +122,9 @@ src/
   lib/data.ts          accès aux données côté serveur
   lib/supabase/        clients Supabase (serveur, proxy)
   proxy.ts             rafraîchissement de session et protection des routes
+android/, ios/         projets natifs (Capacitor)
+mobile/                écran hors-ligne de l'appli
+assets/, store/        icône, écran de démarrage, visuels des stores
 supabase/
   config.toml          configuration Supabase locale
   migrations/          schéma, RLS, triggers

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ExternalLink } from "lucide-react";
+import { DeleteAccountForm } from "@/components/forms/delete-account-form";
 import { StudentProfileForm, TeacherProfileForm } from "@/components/forms/profile-forms";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, Skeleton } from "@/components/ui/misc";
@@ -42,6 +43,13 @@ async function Profile() {
         ) : (
           <StudentProfileForm intent="edit" identity={identity} profile={await getOwnStudentProfile(viewer.id)} />
         )}
+      </Card>
+      <Card className="mt-6 border-danger/30 sm:p-8">
+        <h2 className="font-semibold">Supprimer mon compte</h2>
+        <p className="mt-1 mb-4 text-sm text-muted">
+          Supprime définitivement votre compte et toutes vos données. Vos interlocuteurs ne verront plus vos messages.
+        </p>
+        <DeleteAccountForm />
       </Card>
     </>
   );

@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireViewer } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { DURATIONS, isIsoDate, parisToUtc, START_TIMES } from "@/lib/time";
+import { notifyUser } from "@/lib/push";
+import { DURATIONS, durationLabel, formatDay, formatTime, isIsoDate, parisToUtc, START_TIMES } from "@/lib/time";
 import type { Message } from "@/lib/types";
 import type { FormState } from "./state";
 
@@ -29,6 +31,19 @@ export async function sendMessage(
     .single<Message>();
   if (error || !data) return { error: "Message non envoyé. Réessayez." };
 
+  after(async () => {
+    const { data: req } = await supabase
+      .from("match_requests")
+      .select("student_id, teacher_id")
+      .eq("id", data.request_id)
+      .maybeSingle();
+    if (!req) return;
+    await notifyUser(req.student_id === viewer.id ? req.teacher_id : req.student_id, {
+      title: viewer.profile.full_name || "Nouveau message",
+      body: data.body,
+      url: `/messages/${data.request_id}`,
+    });
+  });
   revalidatePath("/messages");
   return { message: data };
 }
@@ -44,7 +59,7 @@ const lessonSchema = z.object({
 });
 
 export async function proposeLesson(_: FormState, formData: FormData): Promise<FormState> {
-  await requireViewer();
+  const viewer = await requireViewer();
   const parsed = lessonSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
@@ -55,15 +70,24 @@ export async function proposeLesson(_: FormState, formData: FormData): Promise<F
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: lesson, error } = await supabase
     .from("lessons")
-    .insert({ request_id, starts_at: startsAt.toISOString(), duration_minutes: duration, note });
+    .insert({ request_id, starts_at: startsAt.toISOString(), duration_minutes: duration, note })
+    .select("teacher_id, student_id, subject, starts_at, duration_minutes")
+    .single();
   if (error) {
     // Les messages levés par les triggers (chevauchement…) sont déjà rédigés pour l'utilisateur.
     if (error.code === "P0001") return { error: `${error.message}.` };
     return { error: "Impossible de proposer ce cours." };
   }
 
+  after(() =>
+    notifyUser(lesson.teacher_id === viewer.id ? lesson.student_id : lesson.teacher_id, {
+      title: "Nouveau cours proposé",
+      body: `${viewer.profile.full_name || "Mentora"} propose ${lesson.subject} le ${formatDay(lesson.starts_at)} à ${formatTime(lesson.starts_at)} (${durationLabel(lesson.duration_minutes)}).`,
+      url: `/calendrier?semaine=${date}`,
+    }),
+  );
   revalidatePath("/calendrier");
   revalidatePath(`/messages/${request_id}`);
   return { success: "Cours proposé ! Il apparaîtra comme confirmé dès que l'autre personne l'aura accepté." };
@@ -72,13 +96,28 @@ export async function proposeLesson(_: FormState, formData: FormData): Promise<F
 const statusSchema = z.object({ id: z.uuid(), status: z.enum(["confirmed", "cancelled"]) });
 
 export async function updateLessonStatus(formData: FormData) {
-  await requireViewer();
+  const viewer = await requireViewer();
   const parsed = statusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
 
   // Règles de transition vérifiées en base (trigger guard_lesson_update).
   const supabase = await createClient();
-  await supabase.from("lessons").update({ status: parsed.data.status }).eq("id", parsed.data.id);
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .update({ status: parsed.data.status })
+    .eq("id", parsed.data.id)
+    .select("teacher_id, student_id, subject, starts_at, status")
+    .maybeSingle();
+  if (lesson) {
+    const confirmed = lesson.status === "confirmed";
+    after(() =>
+      notifyUser(lesson.teacher_id === viewer.id ? lesson.student_id : lesson.teacher_id, {
+        title: confirmed ? "Cours confirmé ✅" : "Cours annulé",
+        body: `${lesson.subject}, ${formatDay(lesson.starts_at)} à ${formatTime(lesson.starts_at)}${confirmed ? "" : ` — annulé par ${viewer.profile.full_name || "l'autre participant"}`}.`,
+        url: "/calendrier",
+      }),
+    );
+  }
   revalidatePath("/calendrier");
   revalidatePath("/messages", "layout");
 }

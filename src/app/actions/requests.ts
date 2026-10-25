@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { getOwnStudentProfile, getTeacher, requireViewer } from "@/lib/data";
 import { scoreTeacher } from "@/lib/matching";
+import { notifyUser } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
 import type { FormState } from "./state";
 
@@ -42,6 +44,13 @@ export async function createRequest(_: FormState, formData: FormData): Promise<F
     return { error: "Impossible d'envoyer la demande." };
   }
 
+  after(() =>
+    notifyUser(teacher.id, {
+      title: "Nouvelle demande de cours",
+      body: `${viewer.profile.full_name || "Un élève"} souhaite des cours de ${parsed.data.subject}.`,
+      url: "/tableau-de-bord",
+    }),
+  );
   revalidatePath(`/enseignants/${teacher.id}`);
   revalidatePath("/tableau-de-bord");
   return { success: "Demande envoyée ! L'enseignant va vous répondre rapidement." };
@@ -53,12 +62,26 @@ const statusSchema = z.object({
 });
 
 export async function updateRequestStatus(formData: FormData) {
-  await requireViewer();
+  const viewer = await requireViewer();
   const parsed = statusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
 
   // Les transitions autorisées sont vérifiées en base (trigger guard_request_update).
   const supabase = await createClient();
-  await supabase.from("match_requests").update({ status: parsed.data.status }).eq("id", parsed.data.id);
+  const { data: request } = await supabase
+    .from("match_requests")
+    .update({ status: parsed.data.status })
+    .eq("id", parsed.data.id)
+    .select("id, student_id, subject, status")
+    .maybeSingle();
+  if (request?.status === "accepted") {
+    after(() =>
+      notifyUser(request.student_id, {
+        title: "Demande acceptée 🎉",
+        body: `${viewer.profile.full_name || "Votre enseignant"} a accepté votre demande en ${request.subject}. Écrivez-lui pour organiser un premier cours.`,
+        url: `/messages/${request.id}`,
+      }),
+    );
+  }
   revalidatePath("/tableau-de-bord");
 }

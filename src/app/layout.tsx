@@ -12,9 +12,15 @@ export const metadata: Metadata = {
   title: { default: "Mentora — Le bon enseignant, au bon moment", template: "%s · Mentora" },
   description:
     "Mentora met en relation élèves de collège, lycée, CPGE et université avec des enseignants qualifiés, grâce à un matching intelligent.",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon-192.webp", apple: "/icons/icon-512.webp" },
+  appleWebApp: { capable: true, title: "Mentora", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
+  // Plein écran sur mobile (encoche iPhone) : les marges de sécurité sont gérées en CSS.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fbfaf4" },
     { media: "(prefers-color-scheme: dark)", color: "#1c1a15" },

@@ -82,8 +82,11 @@ export async function getConversation(viewer: Viewer, requestId: string) {
       .overrideTypes<Lesson[], { merge: false }>(),
   ]);
 
+  const { data: blockState } = await supabase.rpc("block_state", { req: requestId });
+
   return {
     request,
+    blockState: ((blockState as string | null) ?? "none") as "none" | "by_me" | "by_other",
     other: withOther(viewer, request),
     messages: (messages ?? []).reverse(),
     lessons: lessons ?? [],

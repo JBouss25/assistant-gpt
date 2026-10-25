@@ -13,12 +13,24 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "env:local": "node scripts/env-local.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "mobile:sync": "node scripts/mobile-sync.mjs",
+    "mobile:android": "cap open android",
+    "mobile:ios": "cap open ios",
+    "store:screenshots": "node scripts/store-screenshots.mjs"
   },
   "dependencies": {
+    "@capacitor-firebase/messaging": "^8.5.2",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "clsx": "^2.1.1",
+    "firebase": "^12.19.0",
     "lucide-react": "^1.61.0",
     "next": "16.4.3",
     "react": "19.3.0",
@@ -28,6 +40,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22.20.5",
@@ -39,5 +52,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6"
   }
 }

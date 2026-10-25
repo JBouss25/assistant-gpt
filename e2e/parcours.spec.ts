@@ -112,4 +112,25 @@ test("élève et enseignant : matching, demande, messagerie, réservation", asyn
     await teacher.goto(`/calendrier?semaine=${date}`);
     await expect(teacher.locator("div[title]", { hasText: studentName })).toContainText("14:30 – 16:00");
   });
+
+  await test.step("l'enseignante signale puis bloque l'élève", async () => {
+    await teacher.goto(conversationUrl);
+    await teacher.getByRole("button", { name: "Signaler" }).click();
+    await teacher.fill("textarea[name=reason]", "Test de signalement automatique.");
+    await teacher.getByRole("button", { name: "Envoyer le signalement" }).click();
+    await expect(teacher.getByText("notre équipe va examiner")).toBeVisible();
+
+    await teacher.getByRole("button", { name: "Bloquer" }).first().click();
+    await teacher.locator("form", { hasText: "ne pourra plus vous écrire" }).getByRole("button", { name: "Bloquer" }).click();
+    await expect(teacher.getByText("Vous avez bloqué")).toBeVisible();
+
+    await student.goto(conversationUrl);
+    await expect(student.getByText("Cette conversation est fermée.")).toBeVisible();
+    await expect(student.getByLabel("Votre message")).toHaveCount(0);
+  });
+
+  await test.step("après déblocage, la conversation reprend", async () => {
+    await teacher.getByRole("button", { name: /Débloquer/ }).click();
+    await expect(teacher.getByLabel("Votre message")).toBeVisible();
+  });
 });
