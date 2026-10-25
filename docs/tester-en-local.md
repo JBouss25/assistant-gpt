@@ -57,7 +57,18 @@ Ouvrez **deux fenêtres** : une normale (élève) et une en navigation privée (
 | 10 | Élève | *Calendrier* → *Annuler* | Le cours disparaît des deux calendriers |
 | 11 | Les deux | Réduire la fenêtre à la taille d'un téléphone | Calendrier en liste, aucune barre de défilement horizontale |
 
-Les 8 enseignants de démo partagent le mot de passe `mentora-demo`. Leurs adresses sont dans `supabase/seed.sql` (prénom.nom@demo.mentora.fr).
+**Espace parent et suivi :**
+
+| Étape | Action | Résultat attendu |
+| --- | --- | --- |
+| 12 | Se connecter avec `sophie.bernard@demo.mentora.fr` / `mentora-demo` | Tableau de bord parent : carte de Léa avec sa moyenne, ses heures et sa courbe de notes |
+| 13 | *Voir* | Page de progression : graphiques par matière, heures par mois, comptes-rendus |
+| 14 | Se connecter en tant que Claire | « Comptes-rendus à rédiger (1) » : ouvrir, noter le cours, enregistrer |
+| 15 | Revenir sur le compte de Sophie | Le nouveau compte-rendu et la note apparaissent |
+| 16 | Créer un compte « Je suis parent » et saisir le code `DEMO2026` | Léa est reliée au nouveau parent |
+| 17 | Se connecter avec `lea.bernard@demo.mentora.fr` → *Mon profil* | Code parent, parents reliés (bouton pour en retirer un) |
+
+Les 8 enseignants de démo, Léa (élève) et Sophie (parent) partagent le mot de passe `mentora-demo`. Leurs adresses sont dans `supabase/seed.sql` (prénom.nom@demo.mentora.fr).
 
 **Studio Supabase** (interface pour voir les tables) : <http://127.0.0.1:54323>. Il est activé par défaut dans `supabase/config.toml`.
 
@@ -70,7 +81,7 @@ npm test            # tests unitaires : algorithme de matching, dates et fuseau 
 npm run test:e2e    # parcours complet dans un vrai navigateur (lance le serveur si besoin)
 ```
 
-`test:e2e` rejoue automatiquement les étapes 1 à 9 ci-dessus et vérifie l'affichage mobile des pages publiques. Il peut être relancé autant de fois que nécessaire, sans réinitialiser la base. En cas d'échec, le rapport est consultable avec `npx playwright show-report`.
+`test:e2e` rejoue automatiquement les étapes 1 à 9 et 12 à 17 ci-dessus et vérifie l'affichage mobile des pages publiques. Il peut être relancé autant de fois que nécessaire, sans réinitialiser la base. En cas d'échec, le rapport est consultable avec `npx playwright show-report`.
 
 Avant de livrer, lancez aussi :
 

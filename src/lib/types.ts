@@ -1,6 +1,6 @@
 import type { Level, Mode } from "./constants";
 
-export type Role = "student" | "teacher";
+export type Role = "student" | "teacher" | "parent";
 export type RequestStatus = "pending" | "accepted" | "declined" | "cancelled";
 
 export type Profile = {
@@ -86,4 +86,19 @@ export type Lesson = {
   note: string;
   status: LessonStatus;
   proposed_by: string;
+};
+
+export type LessonReport = {
+  id: string;
+  lesson_id: string;
+  teacher_id: string;
+  student_id: string;
+  subject: string;
+  lesson_date: string;
+  grade: number;
+  engagement: number;
+  topics: string;
+  homework: string;
+  comment: string;
+  created_at: string;
 };

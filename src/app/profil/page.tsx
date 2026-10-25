@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ExternalLink } from "lucide-react";
+import { ChildrenCard, ParentCodeCard } from "@/components/family-cards";
 import { DeleteAccountForm } from "@/components/forms/delete-account-form";
+import { ParentProfileForm } from "@/components/forms/family-forms";
 import { StudentProfileForm, TeacherProfileForm } from "@/components/forms/profile-forms";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, Skeleton } from "@/components/ui/misc";
 import { getOwnStudentProfile, getOwnTeacherProfile, requireViewer } from "@/lib/data";
+import { getMyParentCode, listFollowedStudents, listMyParents } from "@/lib/progress";
 
 export const metadata: Metadata = { title: "Mon profil" };
 
@@ -40,10 +43,16 @@ async function Profile() {
       <Card className="mt-8 sm:p-8">
         {isTeacher ? (
           <TeacherProfileForm intent="edit" identity={identity} profile={await getOwnTeacherProfile(viewer.id)} />
+        ) : viewer.profile.role === "parent" ? (
+          <ParentProfileForm intent="edit" identity={identity} />
         ) : (
           <StudentProfileForm intent="edit" identity={identity} profile={await getOwnStudentProfile(viewer.id)} />
         )}
       </Card>
+      {viewer.profile.role === "student" && (
+        <ParentCodeCard code={await getMyParentCode()} parents={await listMyParents(viewer)} />
+      )}
+      {viewer.profile.role === "parent" && <ChildrenCard students={await listFollowedStudents(viewer)} />}
       <Card className="mt-6 border-danger/30 sm:p-8">
         <h2 className="font-semibold">Supprimer mon compte</h2>
         <p className="mt-1 mb-4 text-sm text-muted">

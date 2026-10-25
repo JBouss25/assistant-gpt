@@ -1,4 +1,4 @@
-import { ArrowRight, BadgeCheck, CalendarClock, Gauge, GraduationCap, MessageCircle, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BadgeCheck, CalendarClock, ChartLine as LineChart, Gauge, GraduationCap, MessageCircle, Search, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Avatar, Badge, ScoreRing } from "@/components/ui/misc";
 
@@ -37,6 +37,11 @@ const features = [
     icon: BadgeCheck,
     title: "Des enseignants qui connaissent les programmes",
     text: "Profils détaillés, diplômes et avis d'élèves pour choisir en confiance.",
+  },
+  {
+    icon: LineChart,
+    title: "Les parents suivent la progression",
+    text: "Après chaque cours, l'enseignant note la séance : élève et parents voient l'évolution en graphiques.",
   },
   {
     icon: CalendarClock,
@@ -130,7 +135,7 @@ export default function Home() {
               Mentora s&apos;appuie sur les principes du digital learning : personnalisation, transparence et suivi.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1">
             {features.map((f) => (
               <div key={f.title} className="flex gap-4">
                 <f.icon className="mt-0.5 size-5 shrink-0 text-band-accent" />

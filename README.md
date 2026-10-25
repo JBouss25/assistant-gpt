@@ -1,12 +1,12 @@
 # Mentora
 
-Plateforme qui met en relation des **élèves** (collège, lycée, CPGE, université) avec des **enseignants** qualifiés, grâce à un algorithme de matching transparent.
+Plateforme qui met en relation des **élèves** (collège, lycée, CPGE, université) avec des **enseignants** qualifiés, grâce à un algorithme de matching transparent. Les **parents** suivent la progression de leurs enfants.
 
 **Stack :** Next.js 16 (App Router, Cache Components, Server Actions, Turbopack) · React 19 · Tailwind CSS v4 · Supabase (Auth + Postgres + RLS) · Zod · Vitest · hébergement Vercel.
 
 ## Fonctionnalités
 
-- **Inscription élève ou enseignant**, confirmation par e-mail, onboarding guidé.
+- **Inscription à 3 rôles : élève, enseignant, parent**, confirmation par e-mail, onboarding guidé. Le parent relie le compte de son enfant avec le **code parent** affiché sur le profil de l'élève.
 - **Profil élève** : niveau, classe/filière, matières, objectifs, budget, format, disponibilités (grille semaine).
 - **Profil enseignant** : accroche, présentation, diplômes, matières, niveaux, tarif, format, disponibilités, visibilité.
 - **Matching** (`src/lib/matching.ts`) : score sur 100 avec explications (« Pourquoi ce match ? »).
@@ -25,7 +25,8 @@ Plateforme qui met en relation des **élèves** (collège, lycée, CPGE, univers
 - **Avis** (1–5 étoiles), réservés aux élèves dont la demande a été acceptée. La note moyenne est recalculée en base.
 - **Messagerie en temps réel** entre l'élève et l'enseignant, ouverte dès que la demande est acceptée (Supabase Realtime).
 - **Calendrier de réservation** : vue semaine (liste sur mobile), cours de **1 h 30, 1 h 45 ou 2 h**, proposés par l'un et confirmés par l'autre. Les chevauchements sont refusés, pour l'enseignant comme pour l'élève. Les horaires sont affichés à l'heure de Paris.
-- Tableaux de bord élève et enseignant.
+- **Suivi de la progression** : après chaque cours, l'enseignant rédige un compte-rendu (note /20, implication, notions, devoirs). Élève, parents et enseignants voient des graphiques : évolution des notes par matière, heures de cours par mois, moyenne récente et tendance.
+- Tableaux de bord élève, enseignant (avec les comptes-rendus à rédiger) et parent (un résumé par enfant).
 
 - **Applis Android et iOS** (Capacitor) : notifications push, écran de démarrage, mode hors-ligne. Voir [`docs/publier-sur-les-stores.md`](docs/publier-sur-les-stores.md).
 - **Conformité stores** : suppression de compte, signalement et blocage d'un utilisateur, pages Confidentialité, Conditions et Aide.
@@ -42,6 +43,8 @@ Toutes les règles d'accès sont dans la base (`supabase/migrations`), pas seule
 - Un enseignant ne voit le profil d'un élève qu'après avoir reçu une demande de sa part.
 - Les changements de statut sont contrôlés par un trigger : l'enseignant accepte ou décline, l'élève annule, et une demande traitée ne peut plus changer.
 - Messages : seuls les deux participants d'une demande acceptée peuvent lire ou écrire. Un message ne peut être ni modifié ni supprimé.
+- Parents : accès en lecture seule aux cours, notes et comptes-rendus de leurs enfants reliés, jamais aux messages. Le code parent n'est lisible que par l'élève, qui peut le changer et retirer un parent.
+- Comptes-rendus : seulement pour un cours confirmé et terminé, une fois, par son enseignant. Chaque enseignant ne voit que les siens ; l'élève et ses parents les voient tous.
 - Cours : durée de 90 à 120 min contrôlée en base, date future obligatoire, pas de chevauchement. Seule l'autre personne peut confirmer un cours, et un cours ne peut être annulé qu'avant son début.
 
 ## Démarrage local
@@ -101,6 +104,7 @@ Dans *Authentication → URL Configuration*, ajoutez `https://<votre-domaine>/au
 | `npm run typecheck` | Vérification TypeScript |
 | `npm test` | Tests unitaires du matching et des dates (Vitest) |
 | `npm run test:e2e` | Parcours complet dans un navigateur (Playwright) |
+| `npm run test:db` | Règles de sécurité de la base (106 vérifications, Postgres embarqué, sans Docker) |
 | `npm run db:start` / `db:stop` / `db:reset` | Supabase local (Docker) |
 | `npm run env:local` | Génère `.env.local` pour la base locale |
 | `npm run mobile:sync` | Met à jour les projets Android / iOS (`MOBILE_APP_URL` pour changer d'URL) |

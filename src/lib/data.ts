@@ -8,6 +8,9 @@ import { createClient } from "./supabase/server";
 import { isSupabaseConfigured } from "./supabase/env";
 import type { MatchRequest, Profile, Review, StudentProfile, TeacherCard, TeacherProfile } from "./types";
 
+/** Colonnes lisibles de student_profiles (le code parent est réservé à l'élève). */
+export const STUDENT_COLUMNS = "id, level, grade, subjects, goals, budget_max, mode, availability";
+
 const TEACHER_SELECT = "*, profile:profiles!inner(full_name, city, avatar_url)";
 
 export type Viewer = { id: string; email: string; profile: Profile };
@@ -46,7 +49,11 @@ export async function getOwnTeacherProfile(id: string) {
 
 export async function getOwnStudentProfile(id: string) {
   const supabase = await createClient();
-  const { data } = await supabase.from("student_profiles").select("*").eq("id", id).maybeSingle<StudentProfile>();
+  const { data } = await supabase
+    .from("student_profiles")
+    .select(STUDENT_COLUMNS)
+    .eq("id", id)
+    .maybeSingle<StudentProfile>();
   return data;
 }
 

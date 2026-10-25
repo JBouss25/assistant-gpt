@@ -14,6 +14,9 @@
   --accent: oklch(0.48 0.075 55); /* marron #7a5638 */
   --accent-soft: oklch(0.94 0.025 65);
   --band-accent: oklch(0.83 0.1 115);
+  /* Graphiques (validés : luminosité, saturation, contraste ≥ 3:1). Jamais côte à côte dans un même graphique. */
+  --chart-1: #617522; /* olive : notes */
+  --chart-2: #965726; /* marron : heures */
   --success: oklch(0.58 0.13 150);
   --warning: oklch(0.72 0.14 70);
   --danger: oklch(0.56 0.17 30);
@@ -33,6 +36,8 @@
     --accent: oklch(0.7 0.07 60);
     --accent-soft: oklch(0.31 0.035 60);
     --band-accent: oklch(0.48 0.1 122);
+    --chart-1: #869e43;
+    --chart-2: #bd7a4a;
   }
 }
 
@@ -49,6 +54,8 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-band-accent: var(--band-accent);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);

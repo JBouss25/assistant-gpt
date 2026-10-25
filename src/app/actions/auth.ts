@@ -11,7 +11,7 @@ const signUpSchema = z.object({
   full_name: z.string().trim().min(2, "Indiquez votre nom complet").max(80),
   email: z.email("Adresse e-mail invalide"),
   password: z.string().min(8, "8 caractères minimum"),
-  role: z.enum(["student", "teacher"]),
+  role: z.enum(["student", "teacher", "parent"]),
 });
 
 const signInSchema = z.object({

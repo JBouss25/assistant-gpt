@@ -101,3 +101,16 @@ export async function notifyUser(userId: string, payload: PushPayload) {
     console.error("[push] envoi impossible", error);
   }
 }
+
+/** Notifie les parents reliés à un élève. */
+export async function notifyParentsOf(studentId: string, payload: PushPayload) {
+  const cfg = config();
+  if (!cfg) return;
+  try {
+    const admin = createAdminClient(SUPABASE_URL, cfg.secretKey, { auth: { persistSession: false } });
+    const { data } = await admin.from("parent_links").select("parent_id").eq("student_id", studentId);
+    await Promise.all((data ?? []).map((l) => notifyUser(l.parent_id as string, payload)));
+  } catch (error) {
+    console.error("[push] parents", error);
+  }
+}

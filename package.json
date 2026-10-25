@@ -17,7 +17,8 @@
     "mobile:sync": "node scripts/mobile-sync.mjs",
     "mobile:android": "cap open android",
     "mobile:ios": "cap open ios",
-    "store:screenshots": "node scripts/store-screenshots.mjs"
+    "store:screenshots": "node scripts/store-screenshots.mjs",
+    "test:db": "node supabase/tests/run.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/messaging": "^8.5.2",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
+    "@electric-sql/pglite": "^0.5.11",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22.20.5",

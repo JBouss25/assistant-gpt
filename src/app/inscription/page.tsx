@@ -29,5 +29,5 @@ export default function SignUpPage({ searchParams }: PageProps<"/inscription">) 
 
 async function Form({ searchParams }: Pick<PageProps<"/inscription">, "searchParams">) {
   const { role } = await searchParams;
-  return <SignUpForm defaultRole={role === "teacher" ? "teacher" : "student"} />;
+  return <SignUpForm defaultRole={role === "teacher" || role === "parent" ? role : "student"} />;
 }

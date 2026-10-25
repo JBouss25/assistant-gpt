@@ -62,7 +62,7 @@ Firebase → *Paramètres du projet* → *Comptes de service* → *Générer une
 ⚠️ Ces valeurs sont secrètes : ne les mettez jamais dans le code ni dans une variable `NEXT_PUBLIC_…`. Sans elles, l'appli fonctionne mais n'envoie pas de notifications.
 
 ### Base de données
-Exécutez la migration `supabase/migrations/20261027000000_mobile.sql` (jetons de notification, suppression de compte, signalement et blocage), comme les précédentes.
+Exécutez, dans l'ordre, toutes les migrations de `supabase/migrations/` (jetons de notification, suppression de compte, signalement et blocage, rôle parent et suivi de progression).
 
 Les signalements arrivent dans la table `reports` (Supabase → *Table Editor*). Apple exige de les traiter rapidement : prévoyez de la consulter chaque jour.
 
@@ -136,7 +136,7 @@ Cette commande génère, depuis l'appli réelle avec des données de démo :
    - Fiche : nom, sous-titre, description, mots-clés, captures, URL d'assistance (`/support`), URL de confidentialité (`/confidentialite`).
    - **Confidentialité de l'app** : coordonnées (nom, e-mail), contenu utilisateur (messages), identifiants (ID utilisateur, identifiant d'appareil pour les notifications). Toutes ces données sont liées à l'utilisateur, aucune n'est utilisée pour le suivi publicitaire.
    - **Classification par âge** : déclarez la communication entre utilisateurs. Si vous visez des enfants, la catégorie *Enfants* impose des règles supplémentaires ; une classification 12+ est généralement adaptée.
-   - **Informations pour l'examen** : fournissez **deux comptes de démonstration** (un élève, un enseignant, déjà mis en relation) avec leurs mots de passe, et expliquez où trouver le signalement et le blocage (dans la conversation) et la suppression de compte (*Mon profil*).
+   - **Informations pour l'examen** : fournissez **trois comptes de démonstration** (un élève, un enseignant déjà mis en relation avec lui, et un parent relié à l'élève) avec leurs mots de passe, et expliquez où trouver le signalement et le blocage (dans la conversation) et la suppression de compte (*Mon profil*).
 6. Soumettez pour examen. Comptez 1 à 3 jours.
 
 Motifs de refus fréquents, déjà traités dans Mentora :

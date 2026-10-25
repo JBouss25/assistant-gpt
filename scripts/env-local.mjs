@@ -18,6 +18,8 @@ if (!vars.API_URL || !vars.PUBLISHABLE_KEY) {
 }
 writeFileSync(
   ".env.local",
-  `NEXT_PUBLIC_SUPABASE_URL=${vars.API_URL}\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${vars.PUBLISHABLE_KEY}\nNEXT_PUBLIC_SITE_URL=http://localhost:3000\n`,
+  `NEXT_PUBLIC_SUPABASE_URL=${vars.API_URL}\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${vars.PUBLISHABLE_KEY}\nNEXT_PUBLIC_SITE_URL=http://localhost:3000\n` +
+    // Clé de la base LOCALE uniquement (données de test des scénarios e2e).
+    (vars.SECRET_KEY ? `SUPABASE_SECRET_KEY=${vars.SECRET_KEY}\n` : ""),
 );
 console.log(`.env.local écrit (Supabase : ${vars.API_URL})`);

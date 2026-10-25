@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { CalendarDays, Check, Inbox, MessagesSquare, Search, Sparkles, Star, Users, X } from "lucide-react";
+import { CalendarDays, ChartLine, Check, ClipboardPen, Inbox, MessagesSquare, Search, Sparkles, Star, Users, X } from "lucide-react";
 import { updateRequestStatus } from "@/app/actions/requests";
+import { GradeChart } from "@/components/charts/grade-chart";
+import { AddChildForm, LessonReportForm } from "@/components/forms/family-forms";
 import { TeacherCard } from "@/components/teacher-card";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Avatar, Badge, Card, EmptyState, Skeleton } from "@/components/ui/misc";
@@ -17,6 +19,8 @@ import {
   type RequestWithPeople,
   type Viewer,
 } from "@/lib/data";
+import { getStudentProgress, listFollowedStudents, listPendingReports, type PendingReport } from "@/lib/progress";
+import { durationLabel, formatDay, formatTime } from "@/lib/time";
 import type { RequestStatus } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
@@ -35,6 +39,7 @@ export default function DashboardPage() {
 async function Dashboard() {
   const viewer = await requireViewer();
   if (!viewer.profile.onboarded) redirect("/onboarding");
+  if (viewer.profile.role === "parent") return <ParentDashboard viewer={viewer} />;
   return viewer.profile.role === "teacher" ? <TeacherDashboard viewer={viewer} /> : <StudentDashboard viewer={viewer} />;
 }
 
@@ -77,6 +82,9 @@ async function StudentDashboard({ viewer }: { viewer: Viewer }) {
           subtitle={`${LEVEL_LABEL[student.level]}${student.grade ? ` · ${student.grade}` : ""} · ${student.subjects.join(", ")}`}
         />
         <div className="flex gap-2">
+          <ButtonLink href={`/suivi/${viewer.id}`} variant="secondary" size="sm">
+            <ChartLine className="size-4" /> Ma progression
+          </ButtonLink>
           <ButtonLink href="/profil" variant="secondary" size="sm">
             Affiner mes critères
           </ButtonLink>
@@ -121,7 +129,11 @@ async function StudentDashboard({ viewer }: { viewer: Viewer }) {
 }
 
 async function TeacherDashboard({ viewer }: { viewer: Viewer }) {
-  const [teacher, requests] = await Promise.all([getOwnTeacherProfile(viewer.id), listRequests(viewer)]);
+  const [teacher, requests, toReport] = await Promise.all([
+    getOwnTeacherProfile(viewer.id),
+    listRequests(viewer),
+    listPendingReports(viewer),
+  ]);
   if (!teacher) redirect("/onboarding");
   const pending = requests.filter((r) => r.status === "pending");
   const others = requests.filter((r) => r.status !== "pending");
@@ -133,6 +145,9 @@ async function TeacherDashboard({ viewer }: { viewer: Viewer }) {
         <Greeting viewer={viewer} subtitle={teacher.headline} />
         <div className="flex items-center gap-2">
           {!teacher.is_published && <Badge tone="warning">Profil masqué</Badge>}
+          <ButtonLink href="/suivi" variant="secondary" size="sm">
+            <ChartLine className="size-4" /> Suivi des élèves
+          </ButtonLink>
           <ButtonLink href="/profil" variant="secondary" size="sm">
             Modifier mon profil
           </ButtonLink>
@@ -149,6 +164,8 @@ async function TeacherDashboard({ viewer }: { viewer: Viewer }) {
         />
       </div>
 
+      {toReport.length > 0 && <PendingReports lessons={toReport} />}
+
       <section>
         <h2 className="text-xl font-semibold tracking-tight">Demandes à traiter</h2>
         <div className="mt-6">
@@ -163,6 +180,136 @@ async function TeacherDashboard({ viewer }: { viewer: Viewer }) {
             <RequestList requests={others} role="teacher" />
           </div>
         </section>
+      )}
+    </div>
+  );
+}
+
+function PendingReports({ lessons }: { lessons: PendingReport[] }) {
+  return (
+    <section>
+      <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+        <ClipboardPen className="size-5 text-brand" /> Comptes-rendus à rédiger ({lessons.length})
+      </h2>
+      <p className="mt-1 text-sm text-muted">Quelques lignes après chaque cours : l&apos;élève et ses parents suivent ainsi sa progression.</p>
+      <ul className="mt-6 space-y-3">
+        {lessons.map((l) => (
+          <li key={l.id}>
+            <details className="group rounded-3xl border border-border bg-surface p-5 open:shadow-sm">
+              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
+                <span>
+                  <span className="font-medium">{l.student?.full_name || "Élève"}</span>
+                  <span className="text-muted">
+                    {" "}
+                    · {l.subject} · {formatDay(l.starts_at)}, {formatTime(l.starts_at)} (
+                    {durationLabel(l.duration_minutes)})
+                  </span>
+                </span>
+                <span className="text-sm font-medium text-brand group-open:hidden">Rédiger</span>
+              </summary>
+              <div className="mt-5 border-t border-border pt-5">
+                <LessonReportForm lessonId={l.id} />
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+async function ParentDashboard({ viewer }: { viewer: Viewer }) {
+  const children = await listFollowedStudents(viewer);
+  const progress = await Promise.all(children.map((c) => getStudentProgress(viewer, c.id)));
+
+  return (
+    <div className="space-y-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <Greeting viewer={viewer} subtitle="Suivez les cours et la progression de vos enfants." />
+        <ButtonLink href="/suivi" variant="secondary" size="sm">
+          <ChartLine className="size-4" /> Suivi détaillé
+        </ButtonLink>
+      </div>
+
+      {children.length === 0 ? (
+        <Card className="max-w-lg sm:p-8">
+          <h2 className="text-lg font-semibold">Reliez le compte de votre enfant</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">
+            Votre enfant crée son compte élève, puis vous communique le code affiché dans <strong>Mon profil</strong>.
+          </p>
+          <AddChildForm />
+        </Card>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {progress.map((p) => {
+            if (!p) return null;
+            const top = p.stats.bySubject[0];
+            const last = p.reports[0];
+            return (
+              <Card key={p.student.id} className="flex flex-col gap-5 p-6">
+                <div className="flex items-center gap-3">
+                  <Avatar name={p.student.name} size={44} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{p.student.name}</p>
+                    <p className="text-sm text-muted">
+                      {p.student.level ? LEVEL_LABEL[p.student.level] : "Élève"}
+                      {p.student.grade ? ` · ${p.student.grade}` : ""}
+                    </p>
+                  </div>
+                  <ButtonLink href={`/suivi/${p.student.id}`} size="sm">
+                    Voir
+                  </ButtonLink>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-2xl bg-surface-muted p-3">
+                    <dt className="text-xs text-muted">Moyenne récente</dt>
+                    <dd className="mt-1 text-lg font-semibold">
+                      {p.stats.recentAverage === null ? "—" : `${String(p.stats.recentAverage).replace(".", ",")}/20`}
+                    </dd>
+                  </div>
+                  <div className="rounded-2xl bg-surface-muted p-3">
+                    <dt className="text-xs text-muted">Heures de cours</dt>
+                    <dd className="mt-1 text-lg font-semibold">{String(p.stats.hoursDone).replace(".", ",")} h</dd>
+                  </div>
+                  <div className="rounded-2xl bg-surface-muted p-3">
+                    <dt className="text-xs text-muted">Prochain cours</dt>
+                    <dd className="mt-1 text-sm font-semibold">
+                      {p.stats.nextLesson ? (
+                        <span>
+                          {new Date(p.stats.nextLesson.starts_at).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", timeZone: "Europe/Paris" })}{" "}
+                          {formatTime(p.stats.nextLesson.starts_at)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+                {top ? (
+                  <div>
+                    <p className="mb-2 text-sm font-medium">{top.subject}</p>
+                    <GradeChart points={top.points} label={top.subject} />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">Les notes apparaîtront après le premier compte-rendu d&apos;un enseignant.</p>
+                )}
+                {last && (
+                  <div className="rounded-2xl border border-border p-4 text-sm">
+                    <p className="text-xs text-muted">
+                      Dernier compte-rendu · {formatDay(last.lesson_date)} ·{" "}
+                      {last.teacher?.full_name || "Enseignant"}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-semibold">{String(last.grade).replace(".", ",")}/20</span> en {last.subject} :{" "}
+                      {last.topics}
+                    </p>
+                    {last.homework && <p className="mt-1 text-muted">À faire : {last.homework}</p>}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
       )}
     </div>
   );
