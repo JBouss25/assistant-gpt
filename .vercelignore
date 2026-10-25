@@ -1,0 +1,14 @@
+# Ancien fichier Python (Streamlit) : sans cela, Vercel prend le projet pour une appli Python
+# (« No python entrypoint found »).
+requirements.txt
+pyproject.toml
+
+# Inutiles au site web : applis natives, visuels des stores, base locale, tests, docs.
+android/
+ios/
+mobile/
+assets/
+store/
+supabase/
+e2e/
+docs/
