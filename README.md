@@ -52,9 +52,10 @@ Sans `SUPABASE_URL` et `SUPABASE_SERVICE_KEY`, les messages restent en mémoire 
 
 ## Application Streamlit (prototype)
 
-À la racine, `app.py` est une version Streamlit plus simple, qui utilise les dépendances de `requirements.txt`.
+Le dossier `prototype/` contient une version Streamlit simple, destinée aux démos rapides. Ce n'est pas la version de production.
 
 ```bash
+cd prototype
 pip install -r requirements.txt
 export OPENAI_API_KEY=sk-...   # ou .streamlit/secrets.toml
 streamlit run app.py
