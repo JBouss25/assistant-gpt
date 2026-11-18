@@ -16,6 +16,8 @@ import { studentRoutes } from './routes/students.js'
 import { teacherRoutes } from './routes/teachers.js'
 import { classRoutes } from './routes/classes.js'
 import { enrollmentRoutes } from './routes/enrollments.js'
+import { subjectRoutes } from './routes/subjects.js'
+import { yearRoutes } from './routes/years.js'
 
 export async function buildApp(app: FastifyInstance): Promise<FastifyInstance> {
   // ── Security headers ───────────────────────────────────
@@ -82,6 +84,8 @@ export async function buildApp(app: FastifyInstance): Promise<FastifyInstance> {
   await app.register(teacherRoutes,   { prefix: '/api/v1' })
   await app.register(classRoutes,     { prefix: '/api/v1' })
   await app.register(enrollmentRoutes, { prefix: '/api/v1' })
+  await app.register(subjectRoutes,    { prefix: '/api/v1' })
+  await app.register(yearRoutes,       { prefix: '/api/v1' })
 
   // ── Global error handler ───────────────────────────────
   app.setErrorHandler((error, _req, reply) => {

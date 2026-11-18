@@ -35,12 +35,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: erp-scolaire/services/${{ matrix.service }}/package-lock.json
 
       - name: Install dependencies
         working-directory: erp-scolaire/services/${{ matrix.service }}
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
 
       - name: Type check
         working-directory: erp-scolaire/services/${{ matrix.service }}
@@ -62,7 +60,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: erp-scolaire/services/ai-prediction-service/requirements.txt
 
       - name: Install dependencies
         working-directory: erp-scolaire/services/ai-prediction-service
