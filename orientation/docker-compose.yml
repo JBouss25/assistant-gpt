@@ -1,0 +1,53 @@
+# Orientation 4.0 — pile complète : PostgreSQL (pgvector) + API FastAPI + front Next.js
+# Démarrage : ./scripts/gen-env.sh && docker compose up -d --build
+name: orientation
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orientation}
+      POSTGRES_USER: ${POSTGRES_USER:-orientation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Base non exposée hors du réseau Docker.
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-orientation}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-orientation}
+      JWT_SECRET: ${JWT_SECRET:?Définir JWT_SECRET dans .env}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?Définir FIELD_ENCRYPTION_KEY dans .env}
+      LLM_PROVIDER: ${LLM_PROVIDER:-template}
+      PARENTAL_CONSENT_REQUIRED: ${PARENTAL_CONSENT_REQUIRED:-true}
+      K_ANONYMITY: ${K_ANONYMITY:-10}
+      CORS_ORIGINS: ${PUBLIC_URL:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"   # documentation /docs accessible depuis la machine hôte uniquement
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8000
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  pgdata:

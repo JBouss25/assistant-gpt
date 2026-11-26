@@ -15,6 +15,7 @@ from .psychometrics.instruments import (ADAPTABILITY_ITEMS, AI_CRITICAL_ITEMS, A
 from .psychometrics.scoring import score_assessment
 from .security import CONSENT_TEXT_VERSION, DEFAULT_COUNSELOR_SCOPES, encrypt, hash_password
 from .services import compute_recommendation, ensure_seed_referential
+from .settings import settings
 
 PASSWORD = "demo1234"
 PERIODS = ["T1", "T2", "T3"]
@@ -54,6 +55,8 @@ def random_responses(rng: random.Random, bias: str) -> dict:
 def main() -> None:
     from .personas import ADAM, LEA, YASMINE  # profils de la section 2.3
 
+    if settings.env == "production":
+        raise SystemExit("Refusé : le jeu de démonstration efface la base, il est interdit en production.")
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     rng = random.Random(2027)

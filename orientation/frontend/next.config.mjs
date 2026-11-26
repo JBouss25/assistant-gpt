@@ -3,6 +3,7 @@ const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
 
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone", // image Docker légère (node server.js)
   poweredByHeader: false,
   // Le front appelle /api/v1/* ; Next relaie vers l'API FastAPI (pas de CORS côté navigateur).
   async rewrites() {

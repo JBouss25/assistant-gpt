@@ -15,7 +15,8 @@ from .settings import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    if settings.auto_create_schema:
+        init_db()
     with SessionLocal() as db:
         ensure_seed_referential(db)
     yield

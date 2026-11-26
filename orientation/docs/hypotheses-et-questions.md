@@ -62,12 +62,15 @@ immuable) + parcours navigateur de bout en bout à 360 px.
 
 ## 3. Écarts techniques assumés pour un test local
 
-- SQLite en local, PostgreSQL + pgvector en cible (le code est compatible, `psycopg` est listé).
+- PostgreSQL 16 + pgvector via Docker Compose, schéma géré par Alembic ; la suite de tests passe sur
+  PostgreSQL comme sur SQLite. Les embeddings (RAG du coach V1) ne sont pas encore créés.
 - Pas encore de Redis / workers : le calcul (≈ 15 à 30 ms par élève, Monte-Carlo compris) est fait en ligne.
 - Export PDF par la fonction d'impression du navigateur (feuilles de style d'impression dédiées).
 - Chiffrement applicatif Fernet (AES-128-CBC + HMAC) ; la cible AES-256 avec gestion de clés dédiée (KMS)
   est à brancher à l'hébergement.
-- Pas de Docker / IaC / CI dans ce premier lot.
+- Images Docker (API non-root, front Next.js « standalone ») et Compose fournis ; pas encore d'IaC ni de CI.
+- La limitation des tentatives de connexion et le cache du référentiel sont en mémoire, par processus :
+  passer à Redis en multi-instances.
 
 ## 4. Questions ouvertes (à trancher par le porteur du projet)
 

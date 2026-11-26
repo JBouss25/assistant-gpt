@@ -21,7 +21,10 @@ class Settings:
         self.parental_consent_required = os.getenv("PARENTAL_CONSENT_REQUIRED", "true").lower() == "true"
         self.cors_origins = [o for o in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if o]
         self.k_anonymity = int(os.getenv("K_ANONYMITY", "10"))
-        self.expose_dev_codes = self.env != "production"  # affiche les codes d'invitation parent en local
+        self.expose_dev_codes = self.env != "production"
+        # En PostgreSQL le schéma est géré par les migrations Alembic (alembic upgrade head).
+        default_auto = "true" if self.database_url.startswith("sqlite") else "false"
+        self.auto_create_schema = os.getenv("AUTO_CREATE_SCHEMA", default_auto).lower() == "true"  # affiche les codes d'invitation parent en local
 
 
 settings = Settings()

@@ -2,7 +2,8 @@ import os
 import tempfile
 
 _tmp = tempfile.mkdtemp(prefix="orientation-tests-")
-os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
+# TEST_DATABASE_URL permet de lancer la même suite sur PostgreSQL (base dédiée, effacée par les tests).
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{_tmp}/test.db"
 os.environ["APP_ENV"] = "test"
 os.environ["PBKDF2_ITERATIONS"] = "1000"
 os.environ["PARENTAL_CONSENT_REQUIRED"] = "true"
