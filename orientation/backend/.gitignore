@@ -1,0 +1,6 @@
+orientation.db
+*.db
+.dev_secrets.json
+__pycache__/
+.pytest_cache/
+.venv/

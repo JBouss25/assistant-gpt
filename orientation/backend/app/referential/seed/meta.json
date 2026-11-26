@@ -1,0 +1,29 @@
+{
+  "version": "2027.1-demo",
+  "status": "published",
+  "published_at": "2026-11-26",
+  "notice": "Référentiel de DÉMONSTRATION. Les indicateurs D, A, M, les seuils d'admission, les coûts et les villes sont des valeurs de démonstration destinées aux tests : ils doivent être remplacés par des valeurs sourcées et validées par le comité scientifique avant tout pilote.",
+  "avenir_weights": {"D": 0.35, "H": 0.25, "A": 0.20, "M": 0.20},
+  "h_weights": {"a": 0.0, "b": 0.6, "c": 1.0},
+  "defaults": {
+    "outlook": {"as_of": "2026-10-01", "source_ids": ["SRC-WEF-FOJ-2025", "SRC-ILO-GENAI", "SRC-DEMO-COMITE"]},
+    "admission": {"year": 2026, "as_of": "2026-09-01", "source_id": "SRC-DEMO-ADM"},
+    "cost": {"as_of": "2026-09-01", "source_id": "SRC-DEMO-COUT"}
+  },
+  "sources": [
+    {"id": "SRC-WEF-FOJ-2025", "title": "World Economic Forum — The Future of Jobs Report 2025", "url": "https://www.weforum.org/publications/the-future-of-jobs-report-2025/", "as_of": "2025-01-07", "reliability": "officielle"},
+    {"id": "SRC-ILO-GENAI", "title": "OIT — Indices d'exposition des professions à l'IA générative", "url": "https://www.ilo.org/", "as_of": "2025-05-20", "reliability": "officielle"},
+    {"id": "SRC-DEMO-COMITE", "title": "Estimation du comité — valeur de démonstration à valider", "url": null, "as_of": "2026-10-01", "reliability": "estimation_comite"},
+    {"id": "SRC-DEMO-ADM", "title": "Seuils d'admission de démonstration (à remplacer par les seuils officiels publiés)", "url": null, "as_of": "2026-09-01", "reliability": "demo"},
+    {"id": "SRC-DEMO-COUT", "title": "Coûts de démonstration (à remplacer par les frais publiés par les établissements)", "url": null, "as_of": "2026-09-01", "reliability": "demo"},
+    {"id": "SRC-MASSAR-2026", "title": "Le Matin — Lancement des choix d'orientation sur Massar", "url": "https://lematin.ma/enseignement/massar-lancement-des-choix-dorientation-pour-les-eleves/338302", "as_of": "2026-01-15", "reliability": "presse"},
+    {"id": "SRC-DECRET-2-20-471", "title": "Le Matin — Décret n° 2.20.471 sur l'orientation scolaire et universitaire", "url": "https://lematin.ma/enseignement/un-nouveau-decret-pour-renforcer-lorientation-scolaire-et-universitaire/332179", "as_of": "2026-01-01", "reliability": "presse"},
+    {"id": "SRC-PARCOURSUP-2027", "title": "Diplomeo — Calendrier Parcoursup 2027", "url": "https://diplomeo.com/actualite-fin_parcoursup_2028", "as_of": "2026-11-01", "reliability": "presse"}
+  ],
+  "calendar_events": [
+    {"id": "CAL-FR-PSUP-OPEN-2027", "system": "FR", "levels": ["FR_TLE"], "label": "Ouverture de Parcoursup (session 2027)", "date": "2027-01-18", "source_id": "SRC-PARCOURSUP-2027"},
+    {"id": "CAL-MA-MASSAR-CHOIX-2027", "system": "MA", "levels": ["MA_TC_SCI", "MA_1BAC", "MA_3AC"], "label": "Saisie des choix d'orientation sur Massar (date indicative de démonstration)", "date": "2027-03-01", "source_id": "SRC-DEMO-COMITE"},
+    {"id": "CAL-MA-CONCOURS-ENSA-2027", "system": "MA", "levels": ["MA_2BAC"], "label": "Concours ENSA (date indicative de démonstration)", "date": "2027-07-15", "source_id": "SRC-DEMO-COMITE"},
+    {"id": "CAL-MA-CONCOURS-FMP-2027", "system": "MA", "levels": ["MA_2BAC"], "label": "Concours FMP (date indicative de démonstration)", "date": "2027-07-20", "source_id": "SRC-DEMO-COMITE"}
+  ]
+}
