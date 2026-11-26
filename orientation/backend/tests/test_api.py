@@ -229,3 +229,18 @@ def test_explorer_and_calendar(client, login):
     assert prog["graph"]["edges"] and prog["sources"]
     cal = client.get(f"{API}/explorer/calendar", headers=h, params={"system": "FR", "level": "FR_TLE"}).json()
     assert cal[0]["date"] == "2027-01-18"
+
+
+def test_login_is_throttled(client):
+    for _ in range(10):
+        assert client.post(f"{API}/auth/login", json={"email": "cible@demo.ma", "password": "x"}).status_code == 401
+    assert client.post(f"{API}/auth/login", json={"email": "cible@demo.ma", "password": "x"}).status_code == 429
+
+
+def test_official_grades_take_precedence(client, login):
+    h = login("adam@demo.ma")
+    r = client.put(f"{API}/students/me/grades", headers=h, json=[{"subject": "maths", "period": "T1", "value": 20},
+                                                                 {"subject": "nsi", "period": "T1", "value": 15}]).json()
+    assert r == {"ok": True, "count": 1, "ignored_official": 1}
+    maths_t1 = [g for g in client.get(f"{API}/students/me/grades", headers=h).json() if g["subject"] == "maths" and g["period"] == "T1"]
+    assert len(maths_t1) == 1 and maths_t1[0]["verified"] is True

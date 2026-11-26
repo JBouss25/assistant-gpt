@@ -164,13 +164,18 @@ def get_grades(user: User = Depends(Student), db: Session = Depends(get_db)):
 def put_grades(body: list[GradeIn], user: User = Depends(Student), db: Session = Depends(get_db)):
     if any(g.subject not in SUBJECT_LABELS for g in body):
         raise HTTPException(422, "Matière inconnue")
-    for r in db.scalars(select(GradeRecord).where(GradeRecord.student_id == user.id, GradeRecord.source == "eleve")).all():
-        db.delete(r)
-    for g in body:
+    existing = db.scalars(select(GradeRecord).where(GradeRecord.student_id == user.id)).all()
+    official = {(r.subject, r.period) for r in existing if r.source != "eleve"}
+    for r in existing:
+        if r.source == "eleve":
+            db.delete(r)
+    # Une note importée / vérifiée par l'établissement prime toujours sur la saisie de l'élève.
+    kept = [g for g in body if (g.subject, g.period) not in official]
+    for g in kept:
         db.add(GradeRecord(student_id=user.id, subject=g.subject, period=g.period, value=g.value, source="eleve", verified=False))
-    audit(db, user, "grades_updated", detail={"count": len(body)})
+    audit(db, user, "grades_updated", detail={"count": len(kept)})
     db.commit()
-    return {"ok": True, "count": len(body)}
+    return {"ok": True, "count": len(kept), "ignored_official": len(body) - len(kept)}
 
 
 # -- Évaluation (M2) ------------------------------------------------------------------------

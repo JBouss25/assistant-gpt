@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import secrets
+import time
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
@@ -40,13 +42,30 @@ def new_pseudo() -> str:
     return "pseudo_" + secrets.token_hex(4)
 
 
+# Limitation des tentatives (en mémoire, par IP + e-mail). En production multi-instances : Redis.
+MAX_FAILURES, WINDOW_S = 10, 15 * 60
+_failures: dict[str, list[float]] = defaultdict(list)
+
+
+def _throttle_key(request: Request, email: str) -> str:
+    return f"{request.client.host if request.client else '?'}|{email}"
+
+
 @router.post("/login")
 def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
-    user = db.scalars(select(User).where(User.email == body.email.lower().strip())).first()
+    email = body.email.lower().strip()
+    key = _throttle_key(request, email)
+    now = time.monotonic()
+    _failures[key] = [t for t in _failures[key] if now - t < WINDOW_S]
+    if len(_failures[key]) >= MAX_FAILURES:
+        raise HTTPException(429, "Trop de tentatives : réessayez dans quelques minutes")
+    user = db.scalars(select(User).where(User.email == email)).first()
     if user is None or not verify_password(body.password, user.password_hash) or not user.active:
+        _failures[key].append(now)
         audit(db, None, "login_failed")
         db.commit()
         raise HTTPException(401, "Identifiants incorrects")
+    _failures.pop(key, None)
     audit(db, user, "login")
     db.commit()
     return {"token": create_token(user), "user": user_out(user, db)}

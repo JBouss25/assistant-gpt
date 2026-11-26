@@ -115,9 +115,13 @@ def replay(db: Session, run: RecommendationRun) -> dict[str, Any]:
         return {"identical": False, "reason": "version du modèle ou des pondérations non disponible dans ce déploiement"}
     ref = referential_by_version(db, run.referential_version)
     student = StudentInput.from_dict(run.input_snapshot)
-    again, _ = explain(Engine(ref).recommend(student), ref, run.output.get("explanation_meta", {}).get("provider", "template"))
-    keys = ("items", "blocked", "signals", "warnings", "seed")
-    identical = all(again[k] == run.output[k] for k in keys)
+    again = Engine(ref).recommend(student)
+    # On compare les sorties du moteur (pistes, scores, fourchettes, catégories, contributions…).
+    # Les champs rédigés peuvent avoir été reformulés par un LLM : ils sont exclus de la comparaison.
+    text_fields = {"reasons", "counterfactual", "roadmap_6_12m"}
+    strip = lambda items: [{k: v for k, v in i.items() if k not in text_fields} for i in items]  # noqa: E731
+    identical = (strip(again["items"]) == strip(run.output["items"])
+                 and all(again[k] == run.output[k] for k in ("blocked", "signals", "warnings", "seed")))
     return {"identical": identical, "run_id": run.id, "model_version": run.model_version,
             "weights_version": run.weights_version, "referential_version": run.referential_version}
 
