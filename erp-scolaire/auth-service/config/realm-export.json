@@ -1,0 +1,106 @@
+{
+  "realm": "erp-scolaire",
+  "enabled": true,
+  "displayName": "ERP Scolaire 360°",
+  "displayNameHtml": "<strong>ERP Scolaire</strong>",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername and passwordHistory(5)",
+  "defaultLocale": "fr",
+  "supportedLocales": ["fr", "ar", "en"],
+  "accessTokenLifespan": 900,
+  "refreshTokenMaxReuse": 0,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "roles": {
+    "realm": [
+      { "name": "SUPER_ADMIN",     "description": "Administrateur plateforme" },
+      { "name": "SCHOOL_ADMIN",    "description": "Administrateur établissement" },
+      { "name": "PRINCIPAL",       "description": "Direction pédagogique" },
+      { "name": "TEACHER",         "description": "Enseignant" },
+      { "name": "STUDENT",         "description": "Élève" },
+      { "name": "PARENT",          "description": "Parent / responsable légal" },
+      { "name": "FINANCE_OFFICER", "description": "Responsable financier" },
+      { "name": "HR_OFFICER",      "description": "Responsable RH" },
+      { "name": "COUNSELOR",       "description": "Conseiller pédagogique" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "erp-frontend",
+      "name": "ERP Scolaire — Frontend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://*.erp-scolaire.ma/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "https://*.erp-scolaire.ma"
+      ],
+      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      }
+    },
+    {
+      "clientId": "erp-backend-services",
+      "name": "ERP Scolaire — Backend Services",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "${BACKEND_CLIENT_SECRET}",
+      "defaultClientScopes": ["openid", "roles"]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "CONFIGURE_TOTP",
+      "priority": 10
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "UPDATE_PASSWORD",
+      "priority": 30
+    }
+  ],
+  "browserFlow": "browser",
+  "clientAuthenticationFlow": "clients",
+  "smtpServer": {
+    "host": "${SMTP_HOST}",
+    "port": "${SMTP_PORT}",
+    "from": "noreply@erp-scolaire.ma",
+    "fromDisplayName": "ERP Scolaire",
+    "ssl": "true",
+    "auth": "true",
+    "user": "${SMTP_USER}",
+    "password": "${SMTP_PASSWORD}"
+  }
+}
