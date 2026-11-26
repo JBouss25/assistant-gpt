@@ -8,7 +8,7 @@ soit une hypothèse explicite, soit un écart assumé.
 
 | Module | État dans ce MVP local | Reste à faire |
 | --- | --- | --- |
-| M1 Onboarding adaptatif | Fait : système, niveau, filière / spécialités, langue, ville, contraintes, certitude, consentement, invitation parent | Envoi réel SMS / e-mail (fournisseur à choisir) |
+| M1 Onboarding adaptatif | Fait : système, niveau, filière / spécialités, langue, ville, contraintes, certitude, consentement, invitation parent par e-mail (SMTP) | Invitation par SMS (fournisseur à choisir) ; vérification de l'identité du parent par l'établissement |
 | M2 Évaluation | Formes fixes : RIASEC (30 items), jugement situationnel (3), mini-défis (6), esprit critique IA (4), valeurs (tri de 7 cartes), auto-efficacité, adaptabilité, tolérance à l'incertitude ; reprise en 3 sessions ; copie locale hors-ligne | Calibration IRT (≥ 500 élèves / niveau / langue), DIF, CAT en V1, items en arabe |
 | M3 Recommandation explicable | Fait : étapes 1 à 5 de la section 6.3, fourchettes Monte-Carlo, A/B/C + exploratoire, contributions exactes, contrefactuels, plan 6–12 mois, sources datées, schéma de l'annexe A | Pondérations à valider par le comité |
 | M4 Simulateur | Version complète (notes, budget, mobilité) avec explication des changements | — |
@@ -68,7 +68,10 @@ immuable) + parcours navigateur de bout en bout à 360 px.
 - Export PDF par la fonction d'impression du navigateur (feuilles de style d'impression dédiées).
 - Chiffrement applicatif Fernet (AES-128-CBC + HMAC) ; la cible AES-256 avec gestion de clés dédiée (KMS)
   est à brancher à l'hébergement.
-- Images Docker (API non-root, front Next.js « standalone ») et Compose fournis ; pas encore d'IaC ni de CI.
+- Images Docker (API non-root, front Next.js « standalone »), Compose de production (Caddy HTTPS, sauvegardes
+  chiffrées) et scripts serveur fournis ; pas encore de CI ni de supervision externe (alertes de disponibilité).
+- L'invitation parent prouve l'accès à une boîte e-mail, pas l'identité du représentant légal : pour le pilote,
+  prévoir une vérification par l'établissement (question ouverte n° 4).
 - La limitation des tentatives de connexion et le cache du référentiel sont en mémoire, par processus :
   passer à Redis en multi-instances.
 

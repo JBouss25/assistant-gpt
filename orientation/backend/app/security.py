@@ -38,11 +38,9 @@ def _dev_secret(name: str, factory) -> str:
     return data[name]
 
 
-JWT_SECRET = os.getenv("JWT_SECRET") or (settings.jwt_secret if settings.env == "production"
-                                          else _dev_secret("jwt", lambda: secrets.token_urlsafe(32)))
-_FIELD_KEY = settings.field_key or (_dev_secret("field", lambda: Fernet.generate_key().decode()) if settings.env != "production" else "")
-if not _FIELD_KEY:
-    raise RuntimeError("FIELD_ENCRYPTION_KEY est obligatoire en production")
+# En démo en ligne et en production, Settings a déjà vérifié la présence des secrets.
+JWT_SECRET = settings.jwt_secret or _dev_secret("jwt", lambda: secrets.token_urlsafe(32))
+_FIELD_KEY = settings.field_key or _dev_secret("field", lambda: Fernet.generate_key().decode())
 _fernet = Fernet(_FIELD_KEY.encode())
 
 

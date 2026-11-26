@@ -1,0 +1,21 @@
+# Reverse proxy HTTPS — certificat Let's Encrypt obtenu et renouvelé automatiquement.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# La documentation interactive de l'API n'est jamais publiée.
+	@private path /docs* /redoc* /openapi.json
+	respond @private 404
+
+	reverse_proxy web:3000
+}

@@ -72,8 +72,8 @@ export default function Sharing() {
               {g.invite_code && <> · <span className="text-slate-500">code (démo) :</span> <code className="font-mono">{g.invite_code}</code></>}</li>
           ))}
         </ul>
-        <form className="mt-3 flex gap-2" onSubmit={async (e) => { e.preventDefault(); try { await api("/students/me/parent-invite", { body: { contact } }); setContact(""); await load(); } catch (err) { setError(errorMessage(err)); } }}>
-          <input className={inputCls} placeholder="Téléphone ou e-mail du parent" value={contact} onChange={(e) => setContact(e.target.value)} aria-label="Contact du parent" minLength={3} required />
+        <form className="mt-3 flex gap-2" onSubmit={async (e) => { e.preventDefault(); try { await api("/students/me/parent-invite", { body: { contact } }); setMsg(`Invitation envoyée à ${contact}.`); setContact(""); await load(); } catch (err) { setError(errorMessage(err)); } }}>
+          <input type="email" className={inputCls} placeholder="E-mail du parent" value={contact} onChange={(e) => setContact(e.target.value)} aria-label="E-mail du parent" required />
           <Button type="submit">Inviter</Button>
         </form>
       </Card>

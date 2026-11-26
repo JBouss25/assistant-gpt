@@ -20,6 +20,7 @@ from ..security import (CONSENT_TEXT_VERSION, DEFAULT_COUNSELOR_SCOPES, SHARE_SC
                         encrypt, require_roles)
 from ..services import (active_referential, compute_recommendation, latest_run, latest_traits, refresh_alerts, replay,
                         simulate)
+from ..mailer import MailError, parent_invitation, send_mail, smtp_configured
 from ..settings import settings
 
 router = APIRouter(prefix="/students/me", tags=["élève"])
@@ -139,12 +140,28 @@ class InviteIn(BaseModel):
 
 @router.post("/parent-invite")
 def invite_parent(body: InviteIn, user: User = Depends(Student), db: Session = Depends(get_db)):
+    contact = body.contact.strip()
+    is_email = "@" in contact
+    if not settings.expose_dev_codes and not is_email:
+        raise HTTPException(422, "Indique l'adresse e-mail de ton parent (l'envoi par SMS arrive bientôt).")
     code = secrets.token_urlsafe(9)
-    db.add(GuardianLink(student_id=user.id, invite_code=code, invite_contact=body.contact, status="pending"))
-    audit(db, user, "parent_invited")
+    db.add(GuardianLink(student_id=user.id, invite_code=code, invite_contact=contact, status="pending"))
+    sent = False
+    if is_email and smtp_configured():
+        try:
+            send_mail(contact, *parent_invitation(user.display_name, code))
+            sent = True
+        except MailError as exc:
+            if not settings.expose_dev_codes:
+                db.rollback()
+                raise HTTPException(502, "L'e-mail d'invitation n'a pas pu être envoyé. Réessaie plus tard ou préviens ton établissement.") from exc
+    elif not settings.expose_dev_codes:
+        db.rollback()
+        raise HTTPException(503, "L'envoi des invitations n'est pas encore configuré sur ce serveur. Préviens ton établissement.")
+    audit(db, user, "parent_invited", detail={"email_sent": sent})
     db.commit()
-    # En production : envoi par SMS / e-mail via un fournisseur ; le code n'est jamais renvoyé à l'élève.
-    return {"sent_to": body.contact, "invite_code": code if settings.expose_dev_codes else None}
+    # Le code n'est jamais renvoyé à l'élève en production : seul le parent le reçoit.
+    return {"sent_to": contact, "email_sent": sent, "invite_code": code if settings.expose_dev_codes else None}
 
 
 # -- Notes -------------------------------------------------------------------------------

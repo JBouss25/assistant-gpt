@@ -1,0 +1,53 @@
+# Surcharge de production (serveur OVH Rabat) :
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# - seul Caddy est exposé (ports 80 et 443, HTTPS automatique) ;
+# - l'API et le front ne sont plus publiés sur l'hôte ;
+# - sauvegarde chiffrée quotidienne de la base dans ./backups.
+services:
+  api:
+    ports: !reset []
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?Définir DOMAIN dans .env}
+      CORS_ORIGINS: https://${DOMAIN}
+
+  web:
+    ports: !reset []
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Définir ACME_EMAIL dans .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  backup:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    entrypoint: ["sh", "/deploy/backup.sh"]
+    environment:
+      PGUSER: ${POSTGRES_USER:-orientation}
+      PGDATABASE: ${POSTGRES_DB:-orientation}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?Définir BACKUP_PASSPHRASE dans .env}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./deploy:/deploy:ro
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:

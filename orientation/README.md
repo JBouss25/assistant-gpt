@@ -18,6 +18,7 @@ cd orientation
 ./scripts/gen-env.sh                              # crée .env avec des secrets aléatoires (à sauvegarder)
 docker compose up -d --build                      # db (PostgreSQL 16 + pgvector), api, web
 docker compose run --rm api python -m app.seed_demo   # facultatif : comptes de démonstration (efface la base)
+# générer .env pour un autre mode : ./scripts/gen-env.sh [dev|demo|production] [domaine] [email]
 ```
 
 Ouvrir http://localhost:3000 (API et documentation : http://localhost:8000/docs, accessibles depuis la machine
@@ -30,8 +31,10 @@ uniquement ; la base n'est pas exposée).
 - **Sauvegarde / restauration** :
   `docker compose exec db pg_dump -U orientation -Fc orientation > sauvegarde.dump` puis
   `docker compose exec -T db pg_restore -U orientation -d orientation --clean < sauvegarde.dump`.
-- **Production** : `APP_ENV=production` interdit le jeu de démonstration et exige les secrets ; placer un
-  reverse proxy TLS (Caddy, Nginx, Traefik) devant le port 3000.
+- **Mise en ligne** (HTTPS automatique, sauvegardes chiffrées quotidiennes, pare-feu) : suivre
+  [`docs/deploiement-ovh-rabat.md`](docs/deploiement-ovh-rabat.md) — `docker-compose.prod.yml` + `scripts/deploy.sh`.
+- **Modes** (`APP_ENV`) : `dev` en local, `demo` pour une démo en ligne avec données fictives, `production` pour de
+  vrais élèves (jeu de démo interdit, secrets obligatoires, invitations parent envoyées par e-mail via SMTP).
 - **Derrière un proxy d'entreprise** qui intercepte le HTTPS, fournir son certificat au build via le secret
   optionnel `extra_ca` (`docker compose build` avec une surcharge `build.secrets`) : il n'est jamais copié dans
   les images.
@@ -71,7 +74,7 @@ propose un bouton par compte. Documentation de l'API : http://localhost:8000/doc
 ## Tests
 
 ```bash
-cd orientation/backend && python -m pytest -q        # 43 tests : moteur, banc de 300 cas, API, critères 10.2
+cd orientation/backend && python -m pytest -q        # 45 tests : moteur, banc de 300 cas, API, critères 10.2
 # même suite sur PostgreSQL (base dédiée, effacée par les tests) :
 TEST_DATABASE_URL=postgresql+psycopg://orientation:motdepasse@localhost:5432/orientation_test python -m pytest -q
 python -m app.eval_bench                              # rapport du banc d'évaluation

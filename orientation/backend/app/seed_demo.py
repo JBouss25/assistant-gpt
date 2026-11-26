@@ -55,7 +55,7 @@ def random_responses(rng: random.Random, bias: str) -> dict:
 def main() -> None:
     from .personas import ADAM, LEA, YASMINE  # profils de la section 2.3
 
-    if settings.env == "production":
+    if not settings.demo_seed_allowed:
         raise SystemExit("Refusé : le jeu de démonstration efface la base, il est interdit en production.")
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)

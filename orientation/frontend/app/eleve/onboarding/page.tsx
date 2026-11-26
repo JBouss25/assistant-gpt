@@ -182,15 +182,15 @@ export default function Onboarding() {
               <input type="checkbox" className="mt-1 h-5 w-5" checked={f.shareCounselor} onChange={(e) => setF({ ...f, shareCounselor: e.target.checked })} />
               <span>Je partage mes pistes, ma feuille de route, mes preuves et mes notes avec le conseiller d&apos;orientation de mon établissement.</span>
             </label>
-            <Field label="Téléphone ou e-mail d'un parent / représentant légal" hint="Il recevra une invitation pour valider ton inscription (obligatoire pour les mineurs).">
-              <input className={inputCls} value={f.parentContact} onChange={(e) => setF({ ...f, parentContact: e.target.value })} />
+            <Field label="E-mail d'un parent / représentant légal" hint="Il recevra une invitation pour valider ton inscription (obligatoire pour les mineurs).">
+              <input type="email" className={inputCls} value={f.parentContact} onChange={(e) => setF({ ...f, parentContact: e.target.value })} />
             </Field>
           </>
         )}
         {step === 4 && (
           <>
             <h2 className="text-xl font-semibold">Invitation envoyée ✉️</h2>
-            <p>Ton parent doit valider ton inscription. En attendant, tu peux déjà commencer l&apos;évaluation.</p>
+            <p>Un e-mail a été envoyé à <strong>{f.parentContact}</strong>. Ton parent doit valider ton inscription ; en attendant, tu peux déjà commencer l&apos;évaluation.</p>
             {inviteCode && (
               <Notice tone="info">
                 Mode démonstration : le code d&apos;invitation est <strong className="font-mono">{inviteCode}</strong>. Ton parent peut l&apos;utiliser sur la page « Je suis parent ».

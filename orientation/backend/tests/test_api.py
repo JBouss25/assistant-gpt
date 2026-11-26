@@ -244,3 +244,27 @@ def test_official_grades_take_precedence(client, login):
     assert r == {"ok": True, "count": 1, "ignored_official": 1}
     maths_t1 = [g for g in client.get(f"{API}/students/me/grades", headers=h).json() if g["subject"] == "maths" and g["period"] == "T1"]
     assert len(maths_t1) == 1 and maths_t1[0]["verified"] is True
+
+
+def test_parent_invite_sends_email(client, login, monkeypatch):
+    from app.routers import student as student_router
+    sent = []
+    monkeypatch.setattr(student_router, "smtp_configured", lambda: True)
+    monkeypatch.setattr(student_router, "send_mail", lambda to, subject, body: sent.append((to, subject, body)))
+    r = client.post(f"{API}/students/me/parent-invite", headers=login("yasmine@demo.ma"), json={"contact": "maman@example.org"}).json()
+    assert r["email_sent"] is True and sent and sent[0][0] == "maman@example.org"
+    assert "/parent/inscription?code=" in sent[0][2]
+
+
+def test_production_never_exposes_code_and_requires_email(client, login, monkeypatch):
+    from app.settings import settings
+    monkeypatch.setattr(settings, "expose_dev_codes", False)
+    h = login("yasmine@demo.ma")
+    assert client.post(f"{API}/students/me/parent-invite", headers=h, json={"contact": "+212600000000"}).status_code == 422
+    assert client.post(f"{API}/students/me/parent-invite", headers=h, json={"contact": "papa@example.org"}).status_code == 503  # SMTP absent
+    from app.routers import student as student_router
+    monkeypatch.setattr(student_router, "smtp_configured", lambda: True)
+    monkeypatch.setattr(student_router, "send_mail", lambda *a: None)
+    r = client.post(f"{API}/students/me/parent-invite", headers=h, json={"contact": "papa@example.org"}).json()
+    assert r["invite_code"] is None and r["email_sent"] is True
+    assert all(g["invite_code"] is None for g in client.get(f"{API}/students/me/consents", headers=h).json()["guardians"])
