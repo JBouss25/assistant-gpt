@@ -1,0 +1,11 @@
+{
+  "name": "Orientation 4.0",
+  "short_name": "Orientation",
+  "description": "Aide à l'orientation scolaire et professionnelle — Maroc et mission française",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8",
+  "lang": "fr",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
